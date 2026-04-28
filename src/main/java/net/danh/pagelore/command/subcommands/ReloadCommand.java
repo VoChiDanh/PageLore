@@ -1,0 +1,22 @@
+package net.danh.pagelore.command.subcommands;
+
+import com.mojang.brigadier.Command;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.Commands;
+import net.danh.pagelore.PageLore;
+import net.danh.pagelore.utils.ColorUtils;
+
+public class ReloadCommand {
+    public static LiteralArgumentBuilder<CommandSourceStack> build(PageLore plugin) {
+        return Commands.literal("reload").executes(context -> {
+
+            plugin.getSettings().reload();
+            plugin.getMessages().reload();
+
+            context.getSource().getSender().sendMessage(ColorUtils.parseWithPrefix(plugin.getMessages().getString("reload-success")));
+
+            return Command.SINGLE_SUCCESS;
+        });
+    }
+}

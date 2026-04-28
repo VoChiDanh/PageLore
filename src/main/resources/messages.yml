@@ -1,0 +1,13 @@
+# ========================================== #
+#              PAGELORE MESSAGES             #
+# ========================================== #
+# You can use standard ampersand color codes (&c, &l) or MiniMessage tags (<red>, <bold>, <#FF5555>).
+
+# The prefix applied to all plugin messages. Use an empty string "" to disable it.
+prefix: "<dark_gray>[<gradient:#FF5555:#FFAA00>PageLore</gradient>] "
+
+# Message sent when the configuration is successfully reloaded.
+reload-success: "<green>Configuration and messages have been reloaded successfully!"
+
+# Message sent when a player attempts to run a command without permissions.
+no-permission: "<red>You do not have permission to execute this command."

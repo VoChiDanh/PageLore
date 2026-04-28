@@ -1,0 +1,14 @@
+name: PageLore
+version: '${version}'
+main: net.danh.pagelore.PageLore
+api-version: '1.21'
+load: POSTWORLD
+authors: [ VoChiDanh ]
+dependencies:
+  server:
+    packetevents:
+      load: BEFORE
+      required: true
+    PlaceholderAPI:
+      load: BEFORE
+      required: false

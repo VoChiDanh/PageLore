@@ -1,0 +1,28 @@
+# ========================================== #
+#            PAGELORE CONFIGURATION          #
+# ========================================== #
+
+settings:
+  # The exact string used in your item's lore to split it into pages.
+  # Recommendation: Keep it plain, do not use colors here.
+  page-separator: "{page}"
+
+  # Should the plugin play a sound when navigating pages? (true/false)
+  play-sound: true
+  # Sound type from Bukkit Sound Enum. Example: UI_BUTTON_CLICK, ENTITY_BAT_TAKEOFF
+  sound-type: "ui.button.click"
+  sound-volume: 1.0
+  sound-pitch: 1.0
+  debug: true
+
+# Logic parsing for placeholders, allowing dynamic item requirements
+# Usage in lore: {check:{papi:placeholder}>=value}
+# Example: {check:{papi:mmocore_level}>=105} Combat Level
+requirements:
+  # Symbol shown when the requirement is MET.
+  # Supports MiniMessage formats like <green>, <bold>, <#HexColor>
+  met-symbol: "<green>✔"
+
+  # Symbol shown when the requirement is NOT MET.
+  # Supports MiniMessage formats like <dark_gray>, <strikethrough>
+  unmet-symbol: "<dark_gray>✘"
