@@ -13,7 +13,7 @@ settings:
   sound-type: "ui.button.click"
   sound-volume: 1.0
   sound-pitch: 1.0
-  debug: true
+  debug: false
   # Automatic inventory refresh time for PAPI updates (In Ticks. 20 ticks = 1 second)
   # Recommendation: Set to 60 (3 second) or 100 (5 seconds) for optimal results.
   auto-update-interval: 60
