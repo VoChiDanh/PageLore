@@ -16,7 +16,7 @@ settings:
   debug: false
   # Automatic inventory refresh time for PAPI updates (In Ticks. 20 ticks = 1 second)
   # Recommendation: Set to 60 (3 second) or 100 (5 seconds) for optimal results.
-  auto-update-interval: 60
+  auto-update-interval: 20
 
 # Logic parsing for placeholders, allowing dynamic item requirements
 # Usage in lore: {check:{papi:placeholder}>=value}
