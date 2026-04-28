@@ -11,6 +11,9 @@ import net.danh.pagelore.utils.ConfigUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class PageLore extends JavaPlugin {
 
     private static PageLore instance;
@@ -18,6 +21,10 @@ public class PageLore extends JavaPlugin {
     public String separator, metSymbol, unmetSymbol, soundName;
     public boolean isDebug, playSound;
     public float soundVolume, soundPitch;
+
+    public List<String> nextPageControls = new ArrayList<>();
+    public List<String> previousPageControls = new ArrayList<>();
+
     private ConfigUtils settingsConfig;
     private ConfigUtils messagesConfig;
     private AutoUpdateTask autoUpdateTask;
@@ -61,6 +68,9 @@ public class PageLore extends JavaPlugin {
         soundName = settingsConfig.getString("settings.sound-type", "ui.button.click");
         soundVolume = (float) settingsConfig.getDouble("settings.sound-volume", 1.0);
         soundPitch = (float) settingsConfig.getDouble("settings.sound-pitch", 1.0);
+
+        nextPageControls = settingsConfig.getStringList("controls.next-page");
+        previousPageControls = settingsConfig.getStringList("controls.previous-page");
     }
 
     public void startTask() {

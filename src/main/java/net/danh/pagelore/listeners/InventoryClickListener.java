@@ -62,14 +62,18 @@ public class InventoryClickListener implements Listener {
         if (!hasPageTag) return;
 
         ClickType click = e.getClick();
+        String clickName = click.name();
 
-        if (click == ClickType.SHIFT_RIGHT || click == ClickType.SHIFT_LEFT) {
+        boolean isNext = plugin.nextPageControls.contains(clickName);
+        boolean isPrev = plugin.previousPageControls.contains(clickName);
+
+        if (isNext || isPrev) {
             e.setCancelled(true);
 
             NamespacedKey key = new NamespacedKey(plugin, "current_page");
             int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
-            if (click == ClickType.SHIFT_RIGHT) {
+            if (isNext) {
                 currentPage++;
                 if (currentPage >= totalPages) currentPage = 0;
             } else {
