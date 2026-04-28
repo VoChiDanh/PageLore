@@ -6,13 +6,11 @@ import org.bukkit.Bukkit;
  * Identifies the running server software version, logic, and variants.
  */
 public class ServerVersion {
+    private static final String nmsVersion;
+    private static final int revisionNumber;
     private static int major = 0;
     private static int minor = 0;
     private static int patch = 0;
-
-    private static final String nmsVersion;
-    private static final int revisionNumber;
-
     private static boolean isPaper = false;
     private static boolean isFolia = false;
 

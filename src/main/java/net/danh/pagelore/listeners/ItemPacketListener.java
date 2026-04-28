@@ -19,7 +19,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -68,6 +67,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         if (!bukkitItem.hasItemMeta() || !bukkitItem.getItemMeta().hasLore()) return peItem;
 
         ItemMeta meta = bukkitItem.getItemMeta();
+        PageLore plugin = PageLore.getInstance();
 
         List<String> rawLore = new ArrayList<>();
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
@@ -81,24 +81,22 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
             fetchLegacyLore(meta, rawLore);
         }
 
-        String separator = PageLore.getInstance().getSettings().getString("settings.page-separator", "<page>");
-
         boolean hasPage = false;
         for (String s : rawLore) {
-            if (s.contains(separator)) {
+            if (s.contains(plugin.separator)) {
                 hasPage = true;
                 break;
             }
         }
 
-        NamespacedKey key = new NamespacedKey(PageLore.getInstance(), "current_page");
+        NamespacedKey key = new NamespacedKey(plugin, "current_page");
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
         List<String> pageLore = new ArrayList<>();
         int pageIndex = 0;
 
         for (String line : rawLore) {
-            if (line.contains(separator)) {
+            if (line.contains(plugin.separator)) {
                 pageIndex++;
                 continue;
             }
@@ -107,20 +105,15 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
             }
         }
 
-        String metSymbol = PageLore.getInstance().getSettings().getString("requirements.met-symbol", "<green>✔");
-        String unmetSymbol = PageLore.getInstance().getSettings().getString("requirements.unmet-symbol", "<dark_gray>✘");
-        boolean isDebug = PageLore.getInstance().getSettings().getBoolean("settings.debug", false);
-
         List<String> processedStrings = new ArrayList<>();
         Player player = playerObj instanceof Player ? (Player) playerObj : null;
-        boolean hasPapi = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI") && player != null;
 
         for (String line : pageLore) {
             if (line.contains("{papi:")) {
                 line = line.replaceAll("\\{papi:([^{}]+)\\}", "%$1%");
             }
 
-            if (hasPapi) {
+            if (plugin.hasPapi && player != null) {
                 line = PlaceholderAPI.setPlaceholders(player, line);
             }
 
@@ -137,12 +130,12 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
 
                 boolean conditionMet = isConditionMet(val1Str, val2Str, operator);
 
-                if (isDebug) {
-                    PageLore.getInstance().getLogger().info("[DEBUG] Raw: " + matcher.group(0));
-                    PageLore.getInstance().getLogger().info("[DEBUG] Cleaned -> [" + val1Str + "] " + operator + " [" + val2Str + "] == " + conditionMet);
+                if (plugin.isDebug) {
+                    plugin.getLogger().info("[DEBUG] Raw: " + matcher.group(0));
+                    plugin.getLogger().info("[DEBUG] Cleaned -> [" + val1Str + "] " + operator + " [" + val2Str + "] == " + conditionMet);
                 }
 
-                matcher.appendReplacement(sb, conditionMet ? metSymbol : unmetSymbol);
+                matcher.appendReplacement(sb, conditionMet ? plugin.metSymbol : plugin.unmetSymbol);
             }
             matcher.appendTail(sb);
             processedStrings.add(sb.toString());

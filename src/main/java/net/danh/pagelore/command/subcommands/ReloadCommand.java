@@ -13,6 +13,8 @@ public class ReloadCommand {
 
             plugin.getSettings().reload();
             plugin.getMessages().reload();
+            plugin.loadCache();
+            plugin.startTask();
 
             context.getSource().getSender().sendMessage(ColorUtils.parseWithPrefix(plugin.getMessages().getString("reload-success")));
 

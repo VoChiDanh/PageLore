@@ -30,6 +30,7 @@ public class InventoryClickListener implements Listener {
 
         if (!item.hasItemMeta()) return;
         ItemMeta meta = item.getItemMeta();
+        PageLore plugin = PageLore.getInstance();
 
         List<String> plainLore = new ArrayList<>();
 
@@ -48,13 +49,11 @@ public class InventoryClickListener implements Listener {
 
         if (plainLore.isEmpty()) return;
 
-        String separator = PageLore.getInstance().getSettings().getString("settings.page-separator", "<page>");
-
         boolean hasPageTag = false;
         int totalPages = 1;
 
         for (String line : plainLore) {
-            if (line.contains(separator)) {
+            if (line.contains(plugin.separator)) {
                 hasPageTag = true;
                 totalPages++;
             }
@@ -67,7 +66,7 @@ public class InventoryClickListener implements Listener {
         if (click == ClickType.SHIFT_RIGHT || click == ClickType.SHIFT_LEFT) {
             e.setCancelled(true);
 
-            NamespacedKey key = new NamespacedKey(PageLore.getInstance(), "current_page");
+            NamespacedKey key = new NamespacedKey(plugin, "current_page");
             int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
             if (click == ClickType.SHIFT_RIGHT) {
@@ -84,23 +83,21 @@ public class InventoryClickListener implements Listener {
             e.setCurrentItem(item);
 
             if (e.getWhoClicked() instanceof Player player) {
-                if (PageLore.getInstance().getSettings().getBoolean("settings.play-sound", true)) {
-                    String soundName = PageLore.getInstance().getSettings().getString("settings.sound-type", "ui.button.click");
-                    float volume = (float) PageLore.getInstance().getSettings().getDouble("settings.sound-volume", 1.0);
-                    float pitch = (float) PageLore.getInstance().getSettings().getDouble("settings.sound-pitch", 1.0);
-
+                if (plugin.playSound) {
                     try {
                         if (ServerVersion.isAtLeast(1, 21, 3)) {
-                            String formattedSoundName = soundName.toLowerCase(Locale.ROOT).replace("_", ".");
+                            String formattedSoundName = plugin.soundName.toLowerCase(Locale.ROOT).replace("_", ".");
                             NamespacedKey soundKey = NamespacedKey.minecraft(formattedSoundName);
                             Sound sound = Registry.SOUNDS.get(soundKey);
-                            if (sound != null) player.playSound(player.getLocation(), sound, volume, pitch);
+                            if (sound != null) {
+                                player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
+                            }
                         } else {
-                            Sound sound = Sound.valueOf(soundName.toUpperCase(Locale.ROOT));
-                            player.playSound(player.getLocation(), sound, volume, pitch);
+                            Sound sound = Sound.valueOf(plugin.soundName.toUpperCase(Locale.ROOT));
+                            player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
                         }
                     } catch (Exception ex) {
-                        PageLore.getInstance().getLogger().warning("Invalid sound name in config.yml: " + soundName);
+                        plugin.getLogger().warning("Invalid sound name in config.yml: " + plugin.soundName);
                     }
                 }
             }

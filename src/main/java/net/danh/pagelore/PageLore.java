@@ -6,14 +6,21 @@ import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.danh.pagelore.command.PageLoreCommand;
 import net.danh.pagelore.listeners.InventoryClickListener;
 import net.danh.pagelore.listeners.ItemPacketListener;
+import net.danh.pagelore.tasks.AutoUpdateTask;
 import net.danh.pagelore.utils.ConfigUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class PageLore extends JavaPlugin {
 
     private static PageLore instance;
+    public boolean hasPapi;
+    public String separator, metSymbol, unmetSymbol, soundName;
+    public boolean isDebug, playSound;
+    public float soundVolume, soundPitch;
     private ConfigUtils settingsConfig;
     private ConfigUtils messagesConfig;
+    private AutoUpdateTask autoUpdateTask;
 
     public static PageLore getInstance() {
         return instance;
@@ -26,17 +33,49 @@ public class PageLore extends JavaPlugin {
         settingsConfig = new ConfigUtils(this, "config.yml");
         messagesConfig = new ConfigUtils(this, "messages.yml");
 
+        loadCache();
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> event.registrar().register(new PageLoreCommand(this).buildCommand(), "Main command"));
 
         getServer().getPluginManager().registerEvents(new InventoryClickListener(), this);
         PacketEvents.getAPI().getEventManager().registerListener(new ItemPacketListener(), PacketListenerPriority.NORMAL);
+
+        startTask();
     }
 
     @Override
     public void onDisable() {
+        stopTask();
         settingsConfig.save();
         messagesConfig.save();
         instance = null;
+    }
+
+    public void loadCache() {
+        hasPapi = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
+        separator = settingsConfig.getString("settings.page-separator", "{page}");
+        metSymbol = settingsConfig.getString("requirements.met-symbol", "<green>✔");
+        unmetSymbol = settingsConfig.getString("requirements.unmet-symbol", "<dark_gray>✘");
+        isDebug = settingsConfig.getBoolean("settings.debug", false);
+
+        playSound = settingsConfig.getBoolean("settings.play-sound", true);
+        soundName = settingsConfig.getString("settings.sound-type", "ui.button.click");
+        soundVolume = (float) settingsConfig.getDouble("settings.sound-volume", 1.0);
+        soundPitch = (float) settingsConfig.getDouble("settings.sound-pitch", 1.0);
+    }
+
+    public void startTask() {
+        stopTask();
+        int updateInterval = settingsConfig.getInt("settings.auto-update-interval", 60);
+        if (updateInterval > 0) {
+            autoUpdateTask = new AutoUpdateTask();
+            autoUpdateTask.runTaskTimer(this, updateInterval, updateInterval);
+        }
+    }
+
+    public void stopTask() {
+        if (autoUpdateTask != null && !autoUpdateTask.isCancelled()) {
+            autoUpdateTask.cancel();
+        }
     }
 
     public ConfigUtils getSettings() {
