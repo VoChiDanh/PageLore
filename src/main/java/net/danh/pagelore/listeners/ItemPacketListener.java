@@ -60,11 +60,6 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
     private ItemStack processItem(Object playerObj, ItemStack peItem) {
         if (peItem == null || peItem.getAmount() <= 0 || peItem.getType() == ItemTypes.AIR) return null;
 
-        Player player = playerObj instanceof Player ? (Player) playerObj : null;
-        if (player != null && player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
-            return null;
-        }
-
         org.bukkit.inventory.ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
         if (bukkitItem == null) return null;
         bukkitItem = bukkitItem.clone();
@@ -73,6 +68,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
 
         ItemMeta meta = bukkitItem.getItemMeta();
         PageLore plugin = PageLore.getInstance();
+        Player player = playerObj instanceof Player ? (Player) playerObj : null;
 
         List<String> rawLore = new ArrayList<>();
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
@@ -92,6 +88,12 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
                 hasPage = true;
                 break;
             }
+        }
+
+        if (hasPage) {
+            String joinedLore = String.join("|||", rawLore);
+            NamespacedKey backupKey = new NamespacedKey(plugin, "pagelore_raw_backup");
+            meta.getPersistentDataContainer().set(backupKey, PersistentDataType.STRING, joinedLore);
         }
 
         NamespacedKey key = new NamespacedKey(plugin, "current_page");

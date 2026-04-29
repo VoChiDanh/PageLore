@@ -4,6 +4,7 @@ import net.danh.pagelore.PageLore;
 import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
@@ -12,12 +13,16 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 public class InventoryClickListener implements Listener {
@@ -92,7 +97,6 @@ public class InventoryClickListener implements Listener {
                                     Title.Times subTimes = Title.Times.times(Duration.ofMillis(plugin.titleFadeIn * 50L), Duration.ofMillis(plugin.titleStay * 50L), Duration.ofMillis(plugin.titleFadeOut * 50L));
                                     player.showTitle(Title.title(Component.empty(), msgWithoutPrefix, subTimes));
                                 }
-                                case "CHAT" -> player.sendMessage(msgWithPrefix);
                                 default -> player.sendMessage(msgWithPrefix);
                             }
                         }
@@ -134,12 +138,49 @@ public class InventoryClickListener implements Listener {
                     plugin.getLogger().warning("Invalid sound name in config.yml: " + plugin.soundName);
                 }
             }
+
             if (player.getGameMode() == GameMode.CREATIVE) {
                 Bukkit.getScheduler().runTask(plugin, player::updateInventory);
             }
         }
     }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onCreativeAction(InventoryCreativeEvent e) {
+        ItemStack cursor = e.getCursor();
+        if (cursor == null || !cursor.hasItemMeta()) return;
+
+        ItemMeta meta = cursor.getItemMeta();
+        PageLore plugin = PageLore.getInstance();
+        NamespacedKey backupKey = new NamespacedKey(plugin, "pagelore_raw_backup");
+
+        if (meta.getPersistentDataContainer().has(backupKey, PersistentDataType.STRING)) {
+            String joinedLore = meta.getPersistentDataContainer().get(backupKey, PersistentDataType.STRING);
+
+            if (joinedLore != null && !joinedLore.isEmpty()) {
+                List<String> restoredLore = new ArrayList<>(Arrays.asList(joinedLore.split("\\|\\|\\|")));
+
+                if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
+                    List<Component> finalLore = new ArrayList<>();
+                    for (String str : restoredLore) {
+                        if (str.isEmpty()) {
+                            finalLore.add(Component.empty());
+                        } else {
+                            finalLore.add(MiniMessage.miniMessage().deserialize(str));
+                        }
+                    }
+                    meta.lore(finalLore);
+                } else {
+                    meta.setLore(restoredLore);
+                }
+
+                meta.getPersistentDataContainer().remove(backupKey);
+                cursor.setItemMeta(meta);
+
+                e.setCursor(cursor);
+            }
+        }
+    }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
