@@ -11,17 +11,18 @@ import net.danh.pagelore.utils.ConfigUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class PageLore extends JavaPlugin {
 
     private static PageLore instance;
+    public final Map<UUID, Long> cooldowns = new HashMap<>();
     public boolean hasPapi;
     public String separator, metSymbol, unmetSymbol, soundName;
     public boolean isDebug, playSound;
     public float soundVolume, soundPitch;
-
+    public boolean cooldownEnabled;
+    public double cooldownTime;
     public List<String> nextPageControls = new ArrayList<>();
     public List<String> previousPageControls = new ArrayList<>();
 
@@ -71,6 +72,9 @@ public class PageLore extends JavaPlugin {
 
         nextPageControls = settingsConfig.getStringList("controls.next-page");
         previousPageControls = settingsConfig.getStringList("controls.previous-page");
+
+        cooldownEnabled = settingsConfig.getBoolean("settings.cooldown.enabled", true);
+        cooldownTime = settingsConfig.getDouble("settings.cooldown.time", 0.5);
     }
 
     public void startTask() {

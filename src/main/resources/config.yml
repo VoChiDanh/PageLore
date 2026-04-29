@@ -21,6 +21,13 @@ settings:
   # Recommendation: Set to 20 (1 second) or 60 (3 seconds) for optimal results.
   auto-update-interval: 20
 
+  # Cooldown settings for turning pages to prevent macro/spam abuse and lag.
+  cooldown:
+    # Set to true to enable the cooldown, false to disable.
+    enabled: true
+    # Cooldown duration in seconds (Can use decimals, e.g., 0.5 for half a second).
+    time: 0.5
+
 # Configure the inputs used to turn pages.
 # Valid options include:
 # LEFT, RIGHT, SHIFT_LEFT, SHIFT_RIGHT, WINDOW_BORDER_LEFT, WINDOW_BORDER_RIGHT, MIDDLE, NUMBER_KEY, DOUBLE_CLICK, DROP, CONTROL_DROP, SWAP_OFFHAND

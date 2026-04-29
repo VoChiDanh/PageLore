@@ -11,3 +11,7 @@ reload-success: "<green>Configuration and messages have been reloaded successful
 
 # Message sent when a player attempts to run a command without permissions.
 no-permission: "<red>You do not have permission to execute this command."
+
+# Message sent when a player tries to turn a page too quickly.
+# Use %time% to display the remaining seconds. Leave empty ("") to disable the warning message completely.
+cooldown-active: "<red>Please wait <yellow>%time%s</yellow> before turning the page again."
