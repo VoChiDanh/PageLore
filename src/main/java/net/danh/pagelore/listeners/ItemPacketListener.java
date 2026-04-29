@@ -60,6 +60,11 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
     private ItemStack processItem(Object playerObj, ItemStack peItem) {
         if (peItem == null || peItem.getAmount() <= 0 || peItem.getType() == ItemTypes.AIR) return null;
 
+        Player player = playerObj instanceof Player ? (Player) playerObj : null;
+        if (player != null && player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+            return null;
+        }
+
         org.bukkit.inventory.ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
         if (bukkitItem == null) return null;
         bukkitItem = bukkitItem.clone();
@@ -106,7 +111,6 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         }
 
         List<String> processedStrings = new ArrayList<>();
-        Player player = playerObj instanceof Player ? (Player) playerObj : null;
 
         for (String line : pageLore) {
             if (line.contains("{papi:")) {

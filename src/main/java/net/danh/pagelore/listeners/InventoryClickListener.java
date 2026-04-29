@@ -5,9 +5,7 @@ import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -135,6 +133,9 @@ public class InventoryClickListener implements Listener {
                 } catch (Exception ex) {
                     plugin.getLogger().warning("Invalid sound name in config.yml: " + plugin.soundName);
                 }
+            }
+            if (player.getGameMode() == GameMode.CREATIVE) {
+                Bukkit.getScheduler().runTask(plugin, player::updateInventory);
             }
         }
     }
