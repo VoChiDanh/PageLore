@@ -4,6 +4,7 @@ import net.danh.pagelore.PageLore;
 import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.title.Title;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
@@ -18,6 +19,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.time.Duration;
 import java.util.Locale;
 
 public class InventoryClickListener implements Listener {
@@ -78,7 +80,23 @@ public class InventoryClickListener implements Listener {
                         String msg = plugin.getMessages().getString("cooldown-active", "");
                         if (!msg.isEmpty()) {
                             msg = msg.replace("%time%", String.format(Locale.US, "%.1f", timeLeft / 1000.0));
-                            player.sendMessage(ColorUtils.parseWithPrefix(msg));
+
+                            Component msgWithPrefix = ColorUtils.parseWithPrefix(msg);
+                            Component msgWithoutPrefix = ColorUtils.parse(msg);
+
+                            switch (plugin.cooldownMessageType) {
+                                case "ACTION_BAR" -> player.sendActionBar(msgWithoutPrefix);
+                                case "TITLE" -> {
+                                    Title.Times times = Title.Times.times(Duration.ofMillis(plugin.titleFadeIn * 50L), Duration.ofMillis(plugin.titleStay * 50L), Duration.ofMillis(plugin.titleFadeOut * 50L));
+                                    player.showTitle(Title.title(msgWithoutPrefix, Component.empty(), times));
+                                }
+                                case "SUBTITLE" -> {
+                                    Title.Times subTimes = Title.Times.times(Duration.ofMillis(plugin.titleFadeIn * 50L), Duration.ofMillis(plugin.titleStay * 50L), Duration.ofMillis(plugin.titleFadeOut * 50L));
+                                    player.showTitle(Title.title(Component.empty(), msgWithoutPrefix, subTimes));
+                                }
+                                case "CHAT" -> player.sendMessage(msgWithPrefix);
+                                default -> player.sendMessage(msgWithPrefix);
+                            }
                         }
                         return;
                     }
@@ -100,7 +118,6 @@ public class InventoryClickListener implements Listener {
             meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, currentPage);
             item.setItemMeta(meta);
             e.setCurrentItem(item);
-
 
             if (plugin.playSound) {
                 try {

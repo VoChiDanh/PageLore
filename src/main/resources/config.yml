@@ -28,6 +28,18 @@ settings:
     # Cooldown duration in seconds (Can use decimals, e.g., 0.5 for half a second).
     time: 0.5
 
+    # Where should the cooldown message be displayed?
+    # Available options: CHAT, ACTION_BAR, TITLE, SUBTITLE
+    # Recommendation: ACTION_BAR is the least intrusive.
+    message-type: "ACTION_BAR"
+
+    # Advanced settings specifically for TITLE and SUBTITLE modes.
+    # Measured in ticks (20 ticks = 1 second).
+    title-settings:
+      fade-in: 10
+      stay: 40
+      fade-out: 10
+
 # Configure the inputs used to turn pages.
 # Valid options include:
 # LEFT, RIGHT, SHIFT_LEFT, SHIFT_RIGHT, WINDOW_BORDER_LEFT, WINDOW_BORDER_RIGHT, MIDDLE, NUMBER_KEY, DOUBLE_CLICK, DROP, CONTROL_DROP, SWAP_OFFHAND

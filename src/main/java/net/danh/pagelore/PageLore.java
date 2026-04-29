@@ -23,6 +23,8 @@ public class PageLore extends JavaPlugin {
     public float soundVolume, soundPitch;
     public boolean cooldownEnabled;
     public double cooldownTime;
+    public String cooldownMessageType;
+    public int titleFadeIn, titleStay, titleFadeOut;
     public List<String> nextPageControls = new ArrayList<>();
     public List<String> previousPageControls = new ArrayList<>();
 
@@ -75,6 +77,11 @@ public class PageLore extends JavaPlugin {
 
         cooldownEnabled = settingsConfig.getBoolean("settings.cooldown.enabled", true);
         cooldownTime = settingsConfig.getDouble("settings.cooldown.time", 0.5);
+
+        cooldownMessageType = settingsConfig.getString("settings.cooldown.message-type", "ACTION_BAR").toUpperCase();
+        titleFadeIn = settingsConfig.getInt("settings.cooldown.title-settings.fade-in", 10);
+        titleStay = settingsConfig.getInt("settings.cooldown.title-settings.stay", 40);
+        titleFadeOut = settingsConfig.getInt("settings.cooldown.title-settings.fade-out", 10);
     }
 
     public void startTask() {
