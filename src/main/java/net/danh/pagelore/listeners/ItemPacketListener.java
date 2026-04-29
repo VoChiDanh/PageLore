@@ -19,6 +19,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -35,183 +36,110 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
 
     @Override
     public void onPacketSend(PacketSendEvent event) {
+        Player player = (Player) event.getPlayer();
+        if (player == null || player.getGameMode() == GameMode.CREATIVE) return;
+
         if (event.getPacketType() == PacketType.Play.Server.SET_SLOT) {
             WrapperPlayServerSetSlot setSlot = new WrapperPlayServerSetSlot(event);
-            ItemStack peItem = setSlot.getItem();
-
-            ItemStack modified = processItem(event.getPlayer(), peItem);
-            if (modified != null) {
-                setSlot.setItem(modified);
-            }
+            ItemStack modified = processItem(player, setSlot.getItem());
+            if (modified != null) setSlot.setItem(modified);
         } else if (event.getPacketType() == PacketType.Play.Server.WINDOW_ITEMS) {
             WrapperPlayServerWindowItems windowItems = new WrapperPlayServerWindowItems(event);
             List<ItemStack> items = windowItems.getItems();
-
+            boolean changed = false;
             for (int i = 0; i < items.size(); i++) {
-                ItemStack modified = processItem(event.getPlayer(), items.get(i));
+                ItemStack modified = processItem(player, items.get(i));
                 if (modified != null) {
                     items.set(i, modified);
+                    changed = true;
                 }
             }
-            windowItems.setItems(items);
+            if (changed) windowItems.setItems(items);
         }
     }
 
-    private ItemStack processItem(Object playerObj, ItemStack peItem) {
+    private ItemStack processItem(Player player, ItemStack peItem) {
         if (peItem == null || peItem.getAmount() <= 0 || peItem.getType() == ItemTypes.AIR) return null;
 
         org.bukkit.inventory.ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
-        if (bukkitItem == null) return null;
+        if (bukkitItem == null || !bukkitItem.hasItemMeta() || !bukkitItem.getItemMeta().hasLore()) return null;
+
         bukkitItem = bukkitItem.clone();
-
-        if (!bukkitItem.hasItemMeta() || !bukkitItem.getItemMeta().hasLore()) return peItem;
-
         ItemMeta meta = bukkitItem.getItemMeta();
         PageLore plugin = PageLore.getInstance();
-        Player player = playerObj instanceof Player ? (Player) playerObj : null;
 
         List<String> rawLore = new ArrayList<>();
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
             List<Component> components = meta.lore();
-            if (components != null) {
-                for (Component c : components) {
-                    rawLore.add(MiniMessage.miniMessage().serialize(c));
-                }
-            }
+            if (components != null) components.forEach(c -> rawLore.add(MiniMessage.miniMessage().serialize(c)));
         } else {
-            fetchLegacyLore(meta, rawLore);
+            if (meta.getLore() != null) rawLore.addAll(meta.getLore());
         }
 
-        boolean hasPage = false;
-        for (String s : rawLore) {
-            if (s.contains(plugin.separator)) {
-                hasPage = true;
-                break;
-            }
-        }
-
-        if (hasPage) {
-            String joinedLore = String.join("|||", rawLore);
-            NamespacedKey backupKey = new NamespacedKey(plugin, "pagelore_raw_backup");
-            meta.getPersistentDataContainer().set(backupKey, PersistentDataType.STRING, joinedLore);
-        }
-
+        boolean hasPage = rawLore.stream().anyMatch(s -> s.contains(plugin.separator));
         NamespacedKey key = new NamespacedKey(plugin, "current_page");
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
         List<String> pageLore = new ArrayList<>();
         int pageIndex = 0;
-
         for (String line : rawLore) {
             if (line.contains(plugin.separator)) {
                 pageIndex++;
                 continue;
             }
-            if (!hasPage || pageIndex == currentPage) {
-                pageLore.add(line);
-            }
+            if (!hasPage || pageIndex == currentPage) pageLore.add(line);
         }
 
-        List<String> processedStrings = new ArrayList<>();
-
+        List<String> processed = new ArrayList<>();
         for (String line : pageLore) {
-            if (line.contains("{papi:")) {
-                line = line.replaceAll("\\{papi:([^{}]+)\\}", "%$1%");
-            }
+            String l = line.contains("{papi:") ? line.replaceAll("\\{papi:([^{}]+)\\}", "%$1%") : line;
+            if (plugin.hasPapi) l = PlaceholderAPI.setPlaceholders(player, l);
 
-            if (plugin.hasPapi && player != null) {
-                line = PlaceholderAPI.setPlaceholders(player, line);
-            }
-
-            Matcher matcher = CHECK_PATTERN.matcher(line);
+            Matcher matcher = CHECK_PATTERN.matcher(l);
             StringBuilder sb = new StringBuilder();
-
             while (matcher.find()) {
-                String rawVal1 = matcher.group(1);
-                String operator = matcher.group(2);
-                String rawVal2 = matcher.group(3);
-
-                String val1Str = stripAllColors(rawVal1);
-                String val2Str = stripAllColors(rawVal2);
-
-                boolean conditionMet = isConditionMet(val1Str, val2Str, operator);
-
-                if (plugin.isDebug) {
-                    plugin.getLogger().info("[DEBUG] Raw: " + matcher.group(0));
-                    plugin.getLogger().info("[DEBUG] Cleaned -> [" + val1Str + "] " + operator + " [" + val2Str + "] == " + conditionMet);
-                }
-
-                matcher.appendReplacement(sb, conditionMet ? plugin.metSymbol : plugin.unmetSymbol);
+                boolean met = isConditionMet(stripColors(matcher.group(1)), stripColors(matcher.group(3)), matcher.group(2));
+                matcher.appendReplacement(sb, met ? plugin.metSymbol : plugin.unmetSymbol);
             }
             matcher.appendTail(sb);
-            processedStrings.add(sb.toString());
+            processed.add(sb.toString());
+        }
+
+        List<Component> finalLore = new ArrayList<>();
+        for (String str : processed) {
+            finalLore.add(ColorUtils.parse(str).decoration(TextDecoration.ITALIC, false).colorIfAbsent(NamedTextColor.WHITE));
         }
 
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
-            List<Component> finalLore = new ArrayList<>();
-            for (String str : processedStrings) {
-                Component parsed = ColorUtils.parse(str)
-                        .decoration(TextDecoration.ITALIC, false)
-                        .colorIfAbsent(NamedTextColor.WHITE);
-                finalLore.add(parsed);
-            }
             meta.lore(finalLore);
         } else {
-            List<String> finalLore = new ArrayList<>();
-            for (String str : processedStrings) {
-                Component parsed = ColorUtils.parse(str)
-                        .decoration(TextDecoration.ITALIC, false)
-                        .colorIfAbsent(NamedTextColor.WHITE);
-                finalLore.add(LegacyComponentSerializer.legacySection().serialize(parsed));
-            }
-            applyLegacyLore(meta, finalLore);
+            List<String> legacy = finalLore.stream().map(c -> LegacyComponentSerializer.legacySection().serialize(c)).toList();
+            meta.setLore(legacy);
         }
 
         bukkitItem.setItemMeta(meta);
-
-        ItemStack modifiedPeItem = SpigotConversionUtil.fromBukkitItemStack(bukkitItem);
-        return modifiedPeItem != null ? modifiedPeItem : peItem;
+        return SpigotConversionUtil.fromBukkitItemStack(bukkitItem);
     }
 
-    private String stripAllColors(String input) {
+    private String stripColors(String input) {
         if (input == null) return "";
-        String strippedMiniMessage = MiniMessage.miniMessage().stripTags(input);
-        Component legacyParsed = LegacyComponentSerializer.legacySection().deserialize(strippedMiniMessage);
-        return PlainTextComponentSerializer.plainText().serialize(legacyParsed).trim();
+        return PlainTextComponentSerializer.plainText().serialize(LegacyComponentSerializer.legacySection().deserialize(MiniMessage.miniMessage().stripTags(input))).trim();
     }
 
-    private boolean isConditionMet(String val1Str, String val2Str, String operator) {
+    private boolean isConditionMet(String v1, String v2, String op) {
         try {
-            double val1 = Double.parseDouble(val1Str);
-            double val2 = Double.parseDouble(val2Str);
-
-            return switch (operator) {
-                case ">=" -> val1 >= val2;
-                case "<=" -> val1 <= val2;
-                case ">" -> val1 > val2;
-                case "<" -> val1 < val2;
-                case "==" -> val1 == val2;
-                case "!=" -> val1 != val2;
+            double d1 = Double.parseDouble(v1), d2 = Double.parseDouble(v2);
+            return switch (op) {
+                case ">=" -> d1 >= d2;
+                case "<=" -> d1 <= d2;
+                case ">" -> d1 > d2;
+                case "<" -> d1 < d2;
+                case "==" -> d1 == d2;
+                case "!=" -> d1 != d2;
                 default -> false;
             };
-        } catch (NumberFormatException e) {
-            return switch (operator) {
-                case "==" -> val1Str.equalsIgnoreCase(val2Str);
-                case "!=" -> !val1Str.equalsIgnoreCase(val2Str);
-                default -> false;
-            };
+        } catch (Exception e) {
+            return op.equals("==") ? v1.equalsIgnoreCase(v2) : op.equals("!=") && !v1.equalsIgnoreCase(v2);
         }
-    }
-
-    @SuppressWarnings("deprecation")
-    private void fetchLegacyLore(ItemMeta meta, List<String> rawLore) {
-        if (meta.getLore() != null) {
-            rawLore.addAll(meta.getLore());
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    private void applyLegacyLore(ItemMeta meta, List<String> finalLore) {
-        meta.setLore(finalLore);
     }
 }

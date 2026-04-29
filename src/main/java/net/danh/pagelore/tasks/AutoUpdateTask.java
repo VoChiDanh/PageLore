@@ -19,6 +19,10 @@ public class AutoUpdateTask extends BukkitRunnable {
 
         for (Player player : Bukkit.getOnlinePlayers()) {
 
+            if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+                continue;
+            }
+
             if (player.getOpenInventory().getTopInventory().getSize() > 0 && player.getOpenInventory().getTopInventory().getType() != InventoryType.CRAFTING) {
                 player.updateInventory();
                 continue;

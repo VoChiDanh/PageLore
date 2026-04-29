@@ -4,8 +4,6 @@ import net.danh.pagelore.PageLore;
 import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.title.Title;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -13,22 +11,30 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCreativeEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 
 public class InventoryClickListener implements Listener {
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onGameModeChange(PlayerGameModeChangeEvent e) {
+        Player player = e.getPlayer();
+        Bukkit.getScheduler().runTaskLater(PageLore.getInstance(), player::updateInventory, 1L);
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onClick(InventoryClickEvent e) {
+        if (!(e.getWhoClicked() instanceof Player player)) return;
+
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            return;
+        }
+
         ItemStack item = e.getCurrentItem();
         if (item == null || !item.hasItemMeta()) return;
 
@@ -69,116 +75,55 @@ public class InventoryClickListener implements Listener {
 
         e.setCancelled(true);
 
-        if (e.getWhoClicked() instanceof Player player) {
+        if (plugin.cooldownEnabled) {
+            long currentTime = System.currentTimeMillis();
+            long cooldownMillis = (long) (plugin.cooldownTime * 1000);
+            Long lastTime = plugin.cooldowns.get(player.getUniqueId());
 
-            if (plugin.cooldownEnabled) {
-                long currentTime = System.currentTimeMillis();
-                long cooldownMillis = (long) (plugin.cooldownTime * 1000);
-                Long lastTime = plugin.cooldowns.get(player.getUniqueId());
-
-                if (lastTime != null) {
-                    long timeLeft = (lastTime + cooldownMillis) - currentTime;
-
-                    if (timeLeft > 0) {
-                        String msg = plugin.getMessages().getString("cooldown-active", "");
-                        if (!msg.isEmpty()) {
-                            msg = msg.replace("%time%", String.format(Locale.US, "%.1f", timeLeft / 1000.0));
-
-                            Component msgWithPrefix = ColorUtils.parseWithPrefix(msg);
-                            Component msgWithoutPrefix = ColorUtils.parse(msg);
-
-                            switch (plugin.cooldownMessageType) {
-                                case "ACTION_BAR" -> player.sendActionBar(msgWithoutPrefix);
-                                case "TITLE" -> {
-                                    Title.Times times = Title.Times.times(Duration.ofMillis(plugin.titleFadeIn * 50L), Duration.ofMillis(plugin.titleStay * 50L), Duration.ofMillis(plugin.titleFadeOut * 50L));
-                                    player.showTitle(Title.title(msgWithoutPrefix, Component.empty(), times));
-                                }
-                                case "SUBTITLE" -> {
-                                    Title.Times subTimes = Title.Times.times(Duration.ofMillis(plugin.titleFadeIn * 50L), Duration.ofMillis(plugin.titleStay * 50L), Duration.ofMillis(plugin.titleFadeOut * 50L));
-                                    player.showTitle(Title.title(Component.empty(), msgWithoutPrefix, subTimes));
-                                }
-                                default -> player.sendMessage(msgWithPrefix);
-                            }
-                        }
-                        return;
-                    }
-                }
-                plugin.cooldowns.put(player.getUniqueId(), currentTime);
-            }
-
-            NamespacedKey key = new NamespacedKey(plugin, "current_page");
-            int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
-
-            if (isNext) {
-                currentPage++;
-                if (currentPage >= totalPages) currentPage = 0;
-            } else {
-                currentPage--;
-                if (currentPage < 0) currentPage = totalPages - 1;
-            }
-
-            meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, currentPage);
-            item.setItemMeta(meta);
-            e.setCurrentItem(item);
-
-            if (plugin.playSound) {
-                try {
-                    if (ServerVersion.isAtLeast(1, 21, 3)) {
-                        String formattedSoundName = plugin.soundName.toLowerCase(Locale.ROOT).replace("_", ".");
-                        NamespacedKey soundKey = NamespacedKey.minecraft(formattedSoundName);
-                        Sound sound = Registry.SOUNDS.get(soundKey);
-                        if (sound != null) {
-                            player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
-                        }
-                    } else {
-                        Sound sound = Sound.valueOf(plugin.soundName.toUpperCase(Locale.ROOT));
-                        player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
-                    }
-                } catch (Exception ex) {
-                    plugin.getLogger().warning("Invalid sound name in config.yml: " + plugin.soundName);
+            if (lastTime != null) {
+                long timeLeft = (lastTime + cooldownMillis) - currentTime;
+                if (timeLeft > 0) {
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    return;
                 }
             }
-
-            if (player.getGameMode() == GameMode.CREATIVE) {
-                Bukkit.getScheduler().runTask(plugin, player::updateInventory);
-            }
+            plugin.cooldowns.put(player.getUniqueId(), currentTime);
         }
+
+        // Thay đổi trang (giữ nguyên)
+        NamespacedKey key = new NamespacedKey(plugin, "current_page");
+        int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
+
+        if (isNext) {
+            currentPage++;
+            if (currentPage >= totalPages) currentPage = 0;
+        } else {
+            currentPage--;
+            if (currentPage < 0) currentPage = totalPages - 1;
+        }
+
+        meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, currentPage);
+        item.setItemMeta(meta);
+        e.setCurrentItem(item);
+
+        playClickSound(player, plugin);
+
+        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onCreativeAction(InventoryCreativeEvent e) {
-        ItemStack cursor = e.getCursor();
-        if (cursor == null || !cursor.hasItemMeta()) return;
-
-        ItemMeta meta = cursor.getItemMeta();
-        PageLore plugin = PageLore.getInstance();
-        NamespacedKey backupKey = new NamespacedKey(plugin, "pagelore_raw_backup");
-
-        if (meta.getPersistentDataContainer().has(backupKey, PersistentDataType.STRING)) {
-            String joinedLore = meta.getPersistentDataContainer().get(backupKey, PersistentDataType.STRING);
-
-            if (joinedLore != null && !joinedLore.isEmpty()) {
-                List<String> restoredLore = new ArrayList<>(Arrays.asList(joinedLore.split("\\|\\|\\|")));
-
-                if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
-                    List<Component> finalLore = new ArrayList<>();
-                    for (String str : restoredLore) {
-                        if (str.isEmpty()) {
-                            finalLore.add(Component.empty());
-                        } else {
-                            finalLore.add(MiniMessage.miniMessage().deserialize(str));
-                        }
-                    }
-                    meta.lore(finalLore);
-                } else {
-                    meta.setLore(restoredLore);
-                }
-
-                meta.getPersistentDataContainer().remove(backupKey);
-                cursor.setItemMeta(meta);
-
-                e.setCursor(cursor);
+    private void playClickSound(Player player, PageLore plugin) {
+        if (!plugin.playSound) return;
+        try {
+            if (ServerVersion.isAtLeast(1, 21, 3)) {
+                String formattedSoundName = plugin.soundName.toLowerCase(Locale.ROOT).replace("_", ".");
+                NamespacedKey soundKey = NamespacedKey.minecraft(formattedSoundName);
+                Sound sound = Registry.SOUNDS.get(soundKey);
+                if (sound != null) player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
+            } else {
+                Sound sound = Sound.valueOf(plugin.soundName.toUpperCase(Locale.ROOT));
+                player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
             }
+        } catch (Exception ignored) {
         }
     }
 
