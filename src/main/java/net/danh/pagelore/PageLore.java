@@ -45,7 +45,7 @@ public class PageLore extends JavaPlugin {
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> event.registrar().register(new PageLoreCommand(this).buildCommand(), "Main command"));
 
         getServer().getPluginManager().registerEvents(new InventoryClickListener(), this);
-        PacketEvents.getAPI().getEventManager().registerListener(new ItemPacketListener(), PacketListenerPriority.NORMAL);
+        PacketEvents.getAPI().getEventManager().registerListener(new ItemPacketListener(), PacketListenerPriority.HIGHEST);
 
         startTask();
     }
