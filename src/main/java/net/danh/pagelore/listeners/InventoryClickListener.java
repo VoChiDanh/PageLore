@@ -83,14 +83,12 @@ public class InventoryClickListener implements Listener {
             if (lastTime != null) {
                 long timeLeft = (lastTime + cooldownMillis) - currentTime;
                 if (timeLeft > 0) {
-                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
                 }
             }
             plugin.cooldowns.put(player.getUniqueId(), currentTime);
         }
 
-        // Thay đổi trang (giữ nguyên)
         NamespacedKey key = new NamespacedKey(plugin, "current_page");
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
@@ -107,8 +105,6 @@ public class InventoryClickListener implements Listener {
         e.setCurrentItem(item);
 
         playClickSound(player, plugin);
-
-        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
     }
 
     private void playClickSound(Player player, PageLore plugin) {

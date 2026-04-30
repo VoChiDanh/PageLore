@@ -64,9 +64,15 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         org.bukkit.inventory.ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
         if (bukkitItem == null || !bukkitItem.hasItemMeta() || !bukkitItem.getItemMeta().hasLore()) return null;
 
-        bukkitItem = bukkitItem.clone();
         ItemMeta meta = bukkitItem.getItemMeta();
         PageLore plugin = PageLore.getInstance();
+
+        String metaString = meta.toString();
+        if (!metaString.contains(plugin.separator) && !metaString.contains("{papi:") && !metaString.contains("{check:")) {
+            return null;
+        }
+
+        bukkitItem = bukkitItem.clone();
 
         List<String> rawLore = new ArrayList<>();
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
