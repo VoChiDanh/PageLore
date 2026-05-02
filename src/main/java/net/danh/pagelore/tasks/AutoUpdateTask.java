@@ -12,35 +12,42 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.List;
+
 /**
  * Periodically refreshes player inventories to keep placeholders live.
+ * Optimized to fail fast and prevent memory garbage generation.
  */
 public class AutoUpdateTask extends BukkitRunnable {
 
     @Override
     public void run() {
-        String separator = PageLore.getInstance().getSettings().getString("settings.page-separator", "{page}");
+        String separator = PageLore.getInstance().separator;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-
-            if (player.getGameMode() == GameMode.CREATIVE) {
-                continue;
-            }
+            if (player.getGameMode() == GameMode.CREATIVE) continue;
 
             boolean needsUpdate = false;
-            if (player.getOpenInventory().getTopInventory().getSize() > 0 && player.getOpenInventory().getTopInventory().getType() != InventoryType.CRAFTING) {
+
+            // 1. Check Main Hand and Off Hand first (Most common location for lore items)
+            if (hasPageLoreOrPapi(player.getInventory().getItemInMainHand(), separator) ||
+                    hasPageLoreOrPapi(player.getInventory().getItemInOffHand(), separator)) {
+                needsUpdate = true;
+            }
+
+            // 2. Only check open inventory if hands didn't trigger an update
+            if (!needsUpdate && player.getOpenInventory().getTopInventory().getSize() > 0 &&
+                    player.getOpenInventory().getTopInventory().getType() != InventoryType.CRAFTING) {
+
                 for (ItemStack item : player.getOpenInventory().getTopInventory().getContents()) {
                     if (hasPageLoreOrPapi(item, separator)) {
                         needsUpdate = true;
-                        break;
+                        break; // Stop looping immediately once we find one item
                     }
                 }
             }
 
-            ItemStack mainHand = player.getInventory().getItemInMainHand();
-            ItemStack offHand = player.getInventory().getItemInOffHand();
-
-            if (needsUpdate || hasPageLoreOrPapi(mainHand, separator) || hasPageLoreOrPapi(offHand, separator)) {
+            if (needsUpdate) {
                 player.updateInventory();
             }
         }
@@ -48,20 +55,17 @@ public class AutoUpdateTask extends BukkitRunnable {
 
     /**
      * Efficiently checks if an item has lore that requires live updating.
-     *
-     * @param item      The ItemStack to inspect.
-     * @param separator The configured page separator.
-     * @return True if the item requires an update.
      */
     private boolean hasPageLoreOrPapi(ItemStack item, String separator) {
         if (item == null || !item.hasItemMeta()) return false;
-        ItemMeta meta = item.getItemMeta();
 
+        ItemMeta meta = item.getItemMeta();
         if (!meta.hasLore()) return false;
 
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
-            if (meta.lore() != null) {
-                for (Component comp : meta.lore()) {
+            List<Component> lore = meta.lore();
+            if (lore != null) {
+                for (Component comp : lore) {
                     String plainText = ColorUtils.toPlainText(comp);
                     if (plainText.contains(separator) || plainText.contains("{papi:") || plainText.contains("{check:")) {
                         return true;
@@ -69,8 +73,9 @@ public class AutoUpdateTask extends BukkitRunnable {
                 }
             }
         } else {
-            if (meta.getLore() != null) {
-                for (String line : meta.getLore()) {
+            List<String> lore = meta.getLore();
+            if (lore != null) {
+                for (String line : lore) {
                     if (line.contains(separator) || line.contains("{papi:") || line.contains("{check:")) {
                         return true;
                     }
