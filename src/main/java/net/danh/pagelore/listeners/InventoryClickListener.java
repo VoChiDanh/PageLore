@@ -5,7 +5,11 @@ import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -26,6 +30,7 @@ import java.util.UUID;
 
 /**
  * Handles inventory interactions, page switching, and throttled cooldown validations.
+ * Implements a strict anti-desync fix for specialized clicks like SWAP_OFFHAND ('F' key).
  */
 public class InventoryClickListener implements Listener {
 
@@ -61,10 +66,11 @@ public class InventoryClickListener implements Listener {
         int totalPages = 1;
         boolean hasPageTag = false;
 
+        // Safely evaluate total pages using true plain text to avoid reading internal Kyori debug structures.
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
             if (meta.lore() != null) {
                 for (Component comp : meta.lore()) {
-                    if (comp.toString().contains(plugin.separator)) {
+                    if (ColorUtils.toPlainText(comp).contains(plugin.separator)) {
                         hasPageTag = true;
                         totalPages++;
                     }
@@ -83,6 +89,7 @@ public class InventoryClickListener implements Listener {
 
         if (!hasPageTag) return;
 
+        // Immediately cancel the interaction to prevent the player from physically grabbing the item.
         e.setCancelled(true);
 
         if (plugin.cooldownEnabled) {
@@ -98,13 +105,12 @@ public class InventoryClickListener implements Listener {
                         sendCooldownMessage(player, plugin, timeLeft);
                         lastMsgMap.put(player.getUniqueId(), currentTime);
                     }
-                    return;
+                    return; // Prevent turning the page if still on cooldown
                 }
             }
             plugin.cooldowns.put(player.getUniqueId(), currentTime);
         }
 
-        // Apply dynamically loaded Persistent Data key from config
         NamespacedKey key = new NamespacedKey(plugin, plugin.nbtPageKey);
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
@@ -121,6 +127,11 @@ public class InventoryClickListener implements Listener {
         e.setCurrentItem(item);
 
         playClickSound(player, plugin);
+
+        // Core fix for "Messed up / Strange pages" when spamming 'F' key.
+        // Cancelling a SWAP_OFFHAND click causes the client to desynchronize its visual UI state.
+        // By forcing an inventory update 1 tick later, we assure perfect packet synchronization.
+        Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
     }
 
     private void sendCooldownMessage(Player player, PageLore plugin, long timeLeft) {

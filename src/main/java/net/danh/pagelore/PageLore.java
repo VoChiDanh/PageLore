@@ -11,13 +11,17 @@ import net.danh.pagelore.utils.ConfigUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
  * Main plugin class for PageLore.
  * Handles initialization, configuration loading, caching, and task management.
- * All dynamic hardcoded tags are cached here to prevent I/O delays.
+ * Dynamic hardcoded tags are stored centrally to optimize memory and CPU usage.
  */
 public class PageLore extends JavaPlugin {
 
@@ -40,7 +44,7 @@ public class PageLore extends JavaPlugin {
     public int titleStay;
     public int titleFadeOut;
 
-    // Extracted hardcoded variables
+    // Extracted logic tags for advanced parsing
     public String papiTag;
     public String checkTag;
     public String nbtPageKey;
@@ -87,7 +91,7 @@ public class PageLore extends JavaPlugin {
 
     /**
      * Loads and caches configuration values into memory.
-     * Pre-compiles the regex pattern for condition checking to save CPU cycles.
+     * Pre-compiles the regex pattern for condition checking to drastically save CPU cycles during live packet listening.
      */
     public void loadCache() {
         hasPapi = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
@@ -112,7 +116,6 @@ public class PageLore extends JavaPlugin {
         titleStay = settingsConfig.getInt("settings.cooldown.title-settings.stay", 40);
         titleFadeOut = settingsConfig.getInt("settings.cooldown.title-settings.fade-out", 10);
 
-        // Load advanced hardcoded strings and build regex pattern
         papiTag = settingsConfig.getString("advanced.papi-tag", "{papi:");
         checkTag = settingsConfig.getString("advanced.check-tag", "{check:");
         nbtPageKey = settingsConfig.getString("advanced.nbt-page-key", "current_page");

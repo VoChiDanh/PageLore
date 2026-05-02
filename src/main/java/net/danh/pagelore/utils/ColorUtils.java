@@ -39,7 +39,7 @@ public class ColorUtils {
     }
 
     /**
-     * Cleans up an adventure component into raw plaintext.
+     * Cleans up an adventure component into raw, unformatted plaintext.
      */
     public static @NotNull String toPlainText(@NotNull Component component) {
         return PlainTextComponentSerializer.plainText().serialize(component);

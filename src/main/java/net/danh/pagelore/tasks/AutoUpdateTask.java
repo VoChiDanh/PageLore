@@ -1,6 +1,7 @@
 package net.danh.pagelore.tasks;
 
 import net.danh.pagelore.PageLore;
+import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -15,7 +16,7 @@ import java.util.List;
 
 /**
  * Periodically refreshes player inventories to keep placeholders live.
- * Optimized to fail fast and check dynamically assigned strings instead of hardcodes.
+ * Fully refactored to evaluate actual plain text rather than component data hashes.
  */
 public class AutoUpdateTask extends BukkitRunnable {
 
@@ -63,7 +64,8 @@ public class AutoUpdateTask extends BukkitRunnable {
             List<Component> lore = meta.lore();
             if (lore != null) {
                 for (Component comp : lore) {
-                    String plainText = comp.toString();
+                    // Extract safe plain text string representation of the component for matching
+                    String plainText = ColorUtils.toPlainText(comp);
                     if (plainText.contains(plugin.separator) || plainText.contains(plugin.papiTag) || plainText.contains(plugin.checkTag)) {
                         return true;
                     }

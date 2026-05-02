@@ -40,8 +40,6 @@ import java.util.regex.Pattern;
  */
 public class ItemPacketListener extends PacketListenerAbstract implements PacketListener {
 
-    // Memoization cache: Stores ONLY the processed lore components.
-    // This prevents replacing the whole item and losing other NBT data.
     private final Cache<Integer, List<Component>> loreCache =
             CacheBuilder.newBuilder()
                     .expireAfterWrite(1, TimeUnit.SECONDS)
@@ -100,11 +98,11 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         List<String> rawLore = new ArrayList<>();
         boolean needsProcessing = false;
 
-        // Extremely fast raw string check before committing to the heavy math
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
             List<Component> components = meta.lore();
             if (components != null) {
                 for (Component c : components) {
+                    // Safe string serialization guarantees we detect internal tags properly
                     String serialized = MiniMessage.miniMessage().serialize(c);
                     if (serialized.contains(plugin.separator) || serialized.contains(plugin.papiTag) || serialized.contains(plugin.checkTag)) {
                         needsProcessing = true;
@@ -129,7 +127,6 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         NamespacedKey key = new NamespacedKey(plugin, plugin.nbtPageKey);
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
-        // Build Cache Key based ONLY on what strictly affects the lore text
         int cacheKey = Objects.hash(player.getUniqueId(), currentPage, rawLore.hashCode());
 
         List<Component> finalLore = loreCache.getIfPresent(cacheKey);
@@ -169,11 +166,9 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
 
                 finalLore.add(ColorUtils.parse(sb.toString()).decoration(TextDecoration.ITALIC, false).colorIfAbsent(NamedTextColor.WHITE));
             }
-            // Save processed lore to cache
             loreCache.put(cacheKey, finalLore);
         }
 
-        // Apply ONLY the lore back to the meta, preserving enchantments, names, and custom tags
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
             meta.lore(finalLore);
         } else {
