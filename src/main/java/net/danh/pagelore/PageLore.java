@@ -13,18 +13,31 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 
+/**
+ * Main plugin class for PageLore.
+ * Handles initialization, configuration loading, caching, and task management.
+ */
 public class PageLore extends JavaPlugin {
 
     private static PageLore instance;
     public final Map<UUID, Long> cooldowns = new HashMap<>();
+
     public boolean hasPapi;
-    public String separator, metSymbol, unmetSymbol, soundName;
-    public boolean isDebug, playSound;
-    public float soundVolume, soundPitch;
+    public String separator;
+    public String metSymbol;
+    public String unmetSymbol;
+    public String soundName;
+    public boolean isDebug;
+    public boolean playSound;
+    public float soundVolume;
+    public float soundPitch;
     public boolean cooldownEnabled;
     public double cooldownTime;
     public String cooldownMessageType;
-    public int titleFadeIn, titleStay, titleFadeOut;
+    public int titleFadeIn;
+    public int titleStay;
+    public int titleFadeOut;
+
     public List<String> nextPageControls = new ArrayList<>();
     public List<String> previousPageControls = new ArrayList<>();
 
@@ -32,6 +45,11 @@ public class PageLore extends JavaPlugin {
     private ConfigUtils messagesConfig;
     private AutoUpdateTask autoUpdateTask;
 
+    /**
+     * Retrieves the singleton instance of the plugin.
+     *
+     * @return The PageLore instance.
+     */
     public static PageLore getInstance() {
         return instance;
     }
@@ -44,7 +62,10 @@ public class PageLore extends JavaPlugin {
         messagesConfig = new ConfigUtils(this, "messages.yml");
 
         loadCache();
-        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> event.registrar().register(new PageLoreCommand(this).buildCommand(), "Main command"));
+
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
+                event.registrar().register(new PageLoreCommand(this).buildCommand(), "PageLore main command")
+        );
 
         getServer().getPluginManager().registerEvents(new InventoryClickListener(), this);
         PacketEvents.getAPI().getEventManager().registerListener(new ItemPacketListener(), PacketListenerPriority.HIGHEST);
@@ -60,6 +81,9 @@ public class PageLore extends JavaPlugin {
         instance = null;
     }
 
+    /**
+     * Loads and caches configuration values into memory to avoid heavy file I/O operations.
+     */
     public void loadCache() {
         hasPapi = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
         separator = settingsConfig.getString("settings.page-separator", "{page}");
@@ -84,6 +108,9 @@ public class PageLore extends JavaPlugin {
         titleFadeOut = settingsConfig.getInt("settings.cooldown.title-settings.fade-out", 10);
     }
 
+    /**
+     * Starts the auto-update task for live placeholder refreshing.
+     */
     public void startTask() {
         stopTask();
         int updateInterval = settingsConfig.getInt("settings.auto-update-interval", 60);
@@ -93,6 +120,9 @@ public class PageLore extends JavaPlugin {
         }
     }
 
+    /**
+     * Stops the auto-update task safely.
+     */
     public void stopTask() {
         if (autoUpdateTask != null && !autoUpdateTask.isCancelled()) {
             autoUpdateTask.cancel();

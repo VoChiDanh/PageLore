@@ -1,17 +1,13 @@
 # ========================================== #
 #              PAGELORE MESSAGES             #
 # ========================================== #
-# You can use standard ampersand color codes (&c, &l) or MiniMessage tags (<red>, <bold>, <#FF5555>).
 
-# The prefix applied to all plugin messages. Use an empty string "" to disable it.
 prefix: "<dark_gray>[<gradient:#FF5555:#FFAA00>PageLore</gradient>] "
 
-# Message sent when the configuration is successfully reloaded.
+usage: "<yellow>Usage: /pagelore reload"
+
 reload-success: "<green>Configuration and messages have been reloaded successfully!"
 
-# Message sent when a player attempts to run a command without permissions.
 no-permission: "<red>You do not have permission to execute this command."
 
-# Message sent when a player tries to turn a page too quickly.
-# Use %time% to display the remaining seconds. Leave empty ("") to disable the warning message completely.
 cooldown-active: "<red>Please wait <yellow>%time%s</yellow> before turning the page again."

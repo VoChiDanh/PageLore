@@ -8,6 +8,9 @@ import net.danh.pagelore.PageLore;
 import net.danh.pagelore.command.subcommands.ReloadCommand;
 import net.danh.pagelore.utils.ColorUtils;
 
+/**
+ * Handles the base command registration for the plugin utilizing Brigadier.
+ */
 public class PageLoreCommand {
     private final PageLore plugin;
 
@@ -15,6 +18,11 @@ public class PageLoreCommand {
         this.plugin = plugin;
     }
 
+    /**
+     * Builds and returns the main command node.
+     *
+     * @return The constructed LiteralCommandNode.
+     */
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
         return Commands.literal("pagelore")
                 .requires(source -> {
@@ -25,7 +33,8 @@ public class PageLoreCommand {
                     return true;
                 })
                 .executes(context -> {
-                    context.getSource().getSender().sendMessage(ColorUtils.parseWithPrefix("<yellow>Usage: /pagelore reload"));
+                    String usageMsg = plugin.getMessages().getString("usage", "<yellow>Usage: /pagelore reload");
+                    context.getSource().getSender().sendMessage(ColorUtils.parseWithPrefix(usageMsg));
                     return Command.SINGLE_SUCCESS;
                 })
                 .then(ReloadCommand.build(plugin))

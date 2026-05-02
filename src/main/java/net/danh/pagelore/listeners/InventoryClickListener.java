@@ -4,6 +4,7 @@ import net.danh.pagelore.PageLore;
 import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.title.Title;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,8 +18,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.time.Duration;
 import java.util.Locale;
 
+/**
+ * Handles inventory interactions, page switching, and cooldown validations.
+ */
 public class InventoryClickListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -83,6 +88,7 @@ public class InventoryClickListener implements Listener {
             if (lastTime != null) {
                 long timeLeft = (lastTime + cooldownMillis) - currentTime;
                 if (timeLeft > 0) {
+                    sendCooldownMessage(player, plugin, timeLeft);
                     return;
                 }
             }
@@ -107,6 +113,40 @@ public class InventoryClickListener implements Listener {
         playClickSound(player, plugin);
     }
 
+    /**
+     * Dispatches the cooldown warning message based on the configured message type.
+     *
+     * @param player   The player receiving the message.
+     * @param plugin   The plugin instance.
+     * @param timeLeft Remaining cooldown time in milliseconds.
+     */
+    private void sendCooldownMessage(Player player, PageLore plugin, long timeLeft) {
+        String rawMsg = plugin.getMessages().getString("cooldown-active");
+        if (rawMsg == null || rawMsg.isEmpty()) return;
+
+        String timeFormatted = String.format("%.1f", timeLeft / 1000.0);
+        Component msgComp = ColorUtils.parseWithPrefix(rawMsg.replace("%time%", timeFormatted));
+
+        Title.Times times = Title.Times.times(
+                Duration.ofMillis(plugin.titleFadeIn * 50L),
+                Duration.ofMillis(plugin.titleStay * 50L),
+                Duration.ofMillis(plugin.titleFadeOut * 50L)
+        );
+
+        switch (plugin.cooldownMessageType) {
+            case "ACTION_BAR" -> player.sendActionBar(msgComp);
+            case "CHAT" -> player.sendMessage(msgComp);
+            case "TITLE" -> player.showTitle(Title.title(msgComp, Component.empty(), times));
+            case "SUBTITLE" -> player.showTitle(Title.title(Component.empty(), msgComp, times));
+        }
+    }
+
+    /**
+     * Plays the pagination sound to the player.
+     *
+     * @param player The target player.
+     * @param plugin The plugin instance.
+     */
     private void playClickSound(Player player, PageLore plugin) {
         if (!plugin.playSound) return;
         try {
