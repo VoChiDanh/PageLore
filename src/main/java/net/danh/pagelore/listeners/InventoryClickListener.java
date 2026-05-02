@@ -19,12 +19,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 /**
- * Handles inventory interactions, page switching, and cooldown validations.
+ * Handles inventory interactions, page switching, and throttled cooldown validations.
  */
 public class InventoryClickListener implements Listener {
+
+    // Throttles the cooldown message spam when players hold down the interact key
+    private final Map<UUID, Long> lastMsgMap = new HashMap<>();
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onGameModeChange(PlayerGameModeChangeEvent e) {
@@ -88,7 +94,12 @@ public class InventoryClickListener implements Listener {
             if (lastTime != null) {
                 long timeLeft = (lastTime + cooldownMillis) - currentTime;
                 if (timeLeft > 0) {
-                    sendCooldownMessage(player, plugin, timeLeft);
+                    Long lastMsg = lastMsgMap.get(player.getUniqueId());
+                    // Only dispatch the UI message once per second to prevent network choking
+                    if (lastMsg == null || currentTime - lastMsg >= 1000) {
+                        sendCooldownMessage(player, plugin, timeLeft);
+                        lastMsgMap.put(player.getUniqueId(), currentTime);
+                    }
                     return;
                 }
             }
@@ -113,13 +124,6 @@ public class InventoryClickListener implements Listener {
         playClickSound(player, plugin);
     }
 
-    /**
-     * Dispatches the cooldown warning message based on the configured message type.
-     *
-     * @param player   The player receiving the message.
-     * @param plugin   The plugin instance.
-     * @param timeLeft Remaining cooldown time in milliseconds.
-     */
     private void sendCooldownMessage(Player player, PageLore plugin, long timeLeft) {
         String rawMsg = plugin.getMessages().getString("cooldown-active");
         if (rawMsg == null || rawMsg.isEmpty()) return;
@@ -141,12 +145,6 @@ public class InventoryClickListener implements Listener {
         }
     }
 
-    /**
-     * Plays the pagination sound to the player.
-     *
-     * @param player The target player.
-     * @param plugin The plugin instance.
-     */
     private void playClickSound(Player player, PageLore plugin) {
         if (!plugin.playSound) return;
         try {
@@ -166,5 +164,6 @@ public class InventoryClickListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         PageLore.getInstance().cooldowns.remove(e.getPlayer().getUniqueId());
+        lastMsgMap.remove(e.getPlayer().getUniqueId());
     }
 }
