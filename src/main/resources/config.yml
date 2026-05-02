@@ -63,3 +63,10 @@ requirements:
   # Symbol shown when the requirement is NOT MET.
   # Supports MiniMessage formats like <dark_gray>, <strikethrough>
   unmet-symbol: "<dark_gray>✘"
+
+# Advanced parsing settings to modify the internal tags used by the plugin.
+# Only change these if they conflict with other plugins.
+advanced:
+  papi-tag: "{papi:"
+  check-tag: "{check:"
+  nbt-page-key: "current_page"
