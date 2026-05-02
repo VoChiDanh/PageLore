@@ -3,11 +3,8 @@
 # ========================================== #
 
 prefix: "<dark_gray>[<gradient:#FF5555:#FFAA00>PageLore</gradient>] "
-
 usage: "<yellow>Usage: /pagelore reload"
-
 reload-success: "<green>Configuration and messages have been reloaded successfully!"
-
 no-permission: "<red>You do not have permission to execute this command."
-
 cooldown-active: "<red>Please wait <yellow>%time%s</yellow> before turning the page again."
+command-description: "PageLore main management command"

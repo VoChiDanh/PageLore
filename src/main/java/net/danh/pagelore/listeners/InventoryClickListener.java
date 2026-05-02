@@ -47,7 +47,7 @@ public class InventoryClickListener implements Listener {
         }
 
         ItemStack item = e.getCurrentItem();
-        if (item == null || !item.hasItemMeta()) return;
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
 
         PageLore plugin = PageLore.getInstance();
         ClickType click = e.getClick();
@@ -63,16 +63,16 @@ public class InventoryClickListener implements Listener {
         boolean hasPageTag = false;
 
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
-            if (meta.hasLore() && meta.lore() != null) {
+            if (meta.lore() != null) {
                 for (Component comp : meta.lore()) {
-                    if (ColorUtils.toPlainText(comp).contains(plugin.separator)) {
+                    if (comp.toString().contains(plugin.separator)) {
                         hasPageTag = true;
                         totalPages++;
                     }
                 }
             }
         } else {
-            if (meta.hasLore() && meta.getLore() != null) {
+            if (meta.getLore() != null) {
                 for (String line : meta.getLore()) {
                     if (line.contains(plugin.separator)) {
                         hasPageTag = true;
@@ -124,6 +124,13 @@ public class InventoryClickListener implements Listener {
         playClickSound(player, plugin);
     }
 
+    /**
+     * Dispatches the cooldown warning message based on the configured message type.
+     *
+     * @param player   The player receiving the message.
+     * @param plugin   The plugin instance.
+     * @param timeLeft Remaining cooldown time in milliseconds.
+     */
     private void sendCooldownMessage(Player player, PageLore plugin, long timeLeft) {
         String rawMsg = plugin.getMessages().getString("cooldown-active");
         if (rawMsg == null || rawMsg.isEmpty()) return;
@@ -145,6 +152,12 @@ public class InventoryClickListener implements Listener {
         }
     }
 
+    /**
+     * Plays the pagination sound to the player.
+     *
+     * @param player The target player.
+     * @param plugin The plugin instance.
+     */
     private void playClickSound(Player player, PageLore plugin) {
         if (!plugin.playSound) return;
         try {

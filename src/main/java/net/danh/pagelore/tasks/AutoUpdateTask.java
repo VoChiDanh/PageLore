@@ -1,7 +1,6 @@
 package net.danh.pagelore.tasks;
 
 import net.danh.pagelore.PageLore;
-import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -66,7 +65,8 @@ public class AutoUpdateTask extends BukkitRunnable {
             List<Component> lore = meta.lore();
             if (lore != null) {
                 for (Component comp : lore) {
-                    String plainText = ColorUtils.toPlainText(comp);
+                    // Fast string evaluation avoids the massive overhead of full Kyori plain-text stripping
+                    String plainText = comp.toString();
                     if (plainText.contains(separator) || plainText.contains("{papi:") || plainText.contains("{check:")) {
                         return true;
                     }

@@ -63,9 +63,10 @@ public class PageLore extends JavaPlugin {
 
         loadCache();
 
-        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
-                event.registrar().register(new PageLoreCommand(this).buildCommand(), "PageLore main command")
-        );
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            String cmdDesc = messagesConfig.getString("command-description", "PageLore main command");
+            event.registrar().register(new PageLoreCommand(this).buildCommand(), cmdDesc);
+        });
 
         getServer().getPluginManager().registerEvents(new InventoryClickListener(), this);
         PacketEvents.getAPI().getEventManager().registerListener(new ItemPacketListener(), PacketListenerPriority.HIGHEST);
