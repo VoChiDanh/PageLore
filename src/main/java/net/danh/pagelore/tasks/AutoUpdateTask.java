@@ -15,33 +15,31 @@ import java.util.List;
 
 /**
  * Periodically refreshes player inventories to keep placeholders live.
- * Optimized to fail fast and prevent memory garbage generation.
+ * Optimized to fail fast and check dynamically assigned strings instead of hardcodes.
  */
 public class AutoUpdateTask extends BukkitRunnable {
 
     @Override
     public void run() {
-        String separator = PageLore.getInstance().separator;
+        PageLore plugin = PageLore.getInstance();
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player.getGameMode() == GameMode.CREATIVE) continue;
 
             boolean needsUpdate = false;
 
-            // 1. Check Main Hand and Off Hand first (Most common location for lore items)
-            if (hasPageLoreOrPapi(player.getInventory().getItemInMainHand(), separator) ||
-                    hasPageLoreOrPapi(player.getInventory().getItemInOffHand(), separator)) {
+            if (hasPageLoreOrPapi(player.getInventory().getItemInMainHand(), plugin) ||
+                    hasPageLoreOrPapi(player.getInventory().getItemInOffHand(), plugin)) {
                 needsUpdate = true;
             }
 
-            // 2. Only check open inventory if hands didn't trigger an update
             if (!needsUpdate && player.getOpenInventory().getTopInventory().getSize() > 0 &&
                     player.getOpenInventory().getTopInventory().getType() != InventoryType.CRAFTING) {
 
                 for (ItemStack item : player.getOpenInventory().getTopInventory().getContents()) {
-                    if (hasPageLoreOrPapi(item, separator)) {
+                    if (hasPageLoreOrPapi(item, plugin)) {
                         needsUpdate = true;
-                        break; // Stop looping immediately once we find one item
+                        break;
                     }
                 }
             }
@@ -55,7 +53,7 @@ public class AutoUpdateTask extends BukkitRunnable {
     /**
      * Efficiently checks if an item has lore that requires live updating.
      */
-    private boolean hasPageLoreOrPapi(ItemStack item, String separator) {
+    private boolean hasPageLoreOrPapi(ItemStack item, PageLore plugin) {
         if (item == null || !item.hasItemMeta()) return false;
 
         ItemMeta meta = item.getItemMeta();
@@ -65,9 +63,8 @@ public class AutoUpdateTask extends BukkitRunnable {
             List<Component> lore = meta.lore();
             if (lore != null) {
                 for (Component comp : lore) {
-                    // Fast string evaluation avoids the massive overhead of full Kyori plain-text stripping
                     String plainText = comp.toString();
-                    if (plainText.contains(separator) || plainText.contains("{papi:") || plainText.contains("{check:")) {
+                    if (plainText.contains(plugin.separator) || plainText.contains(plugin.papiTag) || plainText.contains(plugin.checkTag)) {
                         return true;
                     }
                 }
@@ -76,7 +73,7 @@ public class AutoUpdateTask extends BukkitRunnable {
             List<String> lore = meta.getLore();
             if (lore != null) {
                 for (String line : lore) {
-                    if (line.contains(separator) || line.contains("{papi:") || line.contains("{check:")) {
+                    if (line.contains(plugin.separator) || line.contains(plugin.papiTag) || line.contains(plugin.checkTag)) {
                         return true;
                     }
                 }

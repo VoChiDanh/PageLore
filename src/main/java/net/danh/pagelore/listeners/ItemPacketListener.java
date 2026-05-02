@@ -36,13 +36,10 @@ import java.util.regex.Pattern;
 
 /**
  * Highly optimized packet listener utilizing Bukkit Meta Fast-Failing.
- * Employs Guava caching to completely eliminate packet storm lag during UI spamming.
+ * Implements a lightweight hash generation algorithm to completely eliminate GUI spam lag.
  */
 public class ItemPacketListener extends PacketListenerAbstract implements PacketListener {
 
-    private static final Pattern CHECK_PATTERN = Pattern.compile("\\{check:(.+?)(>=|<=|>|<|==|!=)(.+?)\\}");
-
-    // Memoization cache: Stores processed items for 1 second to prevent PAPI lag spikes during UI spam.
     private final Cache<Integer, Optional<ItemStack>> itemCache =
             CacheBuilder.newBuilder()
                     .expireAfterWrite(1, TimeUnit.SECONDS)
@@ -61,10 +58,9 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
             if (peItem == null) return;
             ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
 
-            // ULTRA OPTIMIZATION: Bukkit Fast-Fail Check
             if (bukkitItem == null || !bukkitItem.hasItemMeta() || !bukkitItem.getItemMeta().hasLore()) return;
 
-            int cacheKey = Objects.hash(player.getUniqueId(), bukkitItem.hashCode());
+            int cacheKey = generateFastHash(player, bukkitItem);
             Optional<ItemStack> cachedOpt = itemCache.getIfPresent(cacheKey);
 
             if (cachedOpt != null) {
@@ -93,10 +89,9 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
 
                 ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
 
-                // ULTRA OPTIMIZATION: Bukkit Fast-Fail Check
                 if (bukkitItem == null || !bukkitItem.hasItemMeta() || !bukkitItem.getItemMeta().hasLore()) continue;
 
-                int cacheKey = Objects.hash(player.getUniqueId(), bukkitItem.hashCode());
+                int cacheKey = generateFastHash(player, bukkitItem);
                 Optional<ItemStack> cachedOpt = itemCache.getIfPresent(cacheKey);
 
                 if (cachedOpt != null) {
@@ -121,11 +116,24 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
     }
 
     /**
-     * Safely processes the Bukkit item, evaluating placeholders and pagination logic.
+     * Generates a lightweight hash key for the cache based strictly on essential values.
+     * Bypasses the default Bukkit ItemStack.hashCode() which serializes extreme NBT data
+     * and causes severe lag spikes during GUI spam clicks.
      *
-     * @param player     The viewing player.
-     * @param bukkitItem The shallow Bukkit copy of the packet item.
-     * @return A modified Bukkit item, or null if no PageLore modifications were required.
+     * @param player The player interacting with the GUI.
+     * @param item   The item being evaluated.
+     * @return Fast integer hash code.
+     */
+    private int generateFastHash(Player player, ItemStack item) {
+        int hash = Objects.hash(player.getUniqueId(), item.getType(), item.getAmount());
+        if (item.hasItemMeta() && item.getItemMeta().hasLore()) {
+            hash = 31 * hash + item.getItemMeta().getLore().hashCode();
+        }
+        return hash;
+    }
+
+    /**
+     * Safely processes the Bukkit item, evaluating placeholders and pagination logic based on config tags.
      */
     private ItemStack processBukkitItem(Player player, ItemStack bukkitItem) {
         PageLore plugin = PageLore.getInstance();
@@ -133,13 +141,12 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         List<String> rawLore = new ArrayList<>();
         boolean needsProcessing = false;
 
-        // Extremely fast raw string check before committing to the heavy math
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
             List<Component> components = meta.lore();
             if (components != null) {
                 for (Component c : components) {
                     String plainStr = c.toString();
-                    if (plainStr.contains(plugin.separator) || plainStr.contains("{papi:") || plainStr.contains("{check:")) {
+                    if (plainStr.contains(plugin.separator) || plainStr.contains(plugin.papiTag) || plainStr.contains(plugin.checkTag)) {
                         needsProcessing = true;
                     }
                     rawLore.add(MiniMessage.miniMessage().serialize(c));
@@ -149,7 +156,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
             if (meta.getLore() != null) {
                 rawLore.addAll(meta.getLore());
                 for (String line : rawLore) {
-                    if (line.contains(plugin.separator) || line.contains("{papi:") || line.contains("{check:")) {
+                    if (line.contains(plugin.separator) || line.contains(plugin.papiTag) || line.contains(plugin.checkTag)) {
                         needsProcessing = true;
                         break;
                     }
@@ -160,7 +167,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         if (!needsProcessing) return null;
 
         boolean hasPage = rawLore.stream().anyMatch(s -> s.contains(plugin.separator));
-        NamespacedKey key = new NamespacedKey(plugin, "current_page");
+        NamespacedKey key = new NamespacedKey(plugin, plugin.nbtPageKey);
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
         List<String> pageLore = new ArrayList<>();
@@ -175,9 +182,10 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         }
 
         List<Component> finalLore = new ArrayList<>(pageLore.size());
+        String papiRegexReplace = Pattern.quote(plugin.papiTag) + "([^{}]+)\\}";
 
         for (String line : pageLore) {
-            String processedLine = line.contains("{papi:") ? line.replaceAll("\\{papi:([^{}]+)\\}", "%$1%") : line;
+            String processedLine = line.contains(plugin.papiTag) ? line.replaceAll(papiRegexReplace, "%$1%") : line;
             if (plugin.hasPapi) {
                 try {
                     processedLine = PlaceholderAPI.setPlaceholders(player, processedLine);
@@ -185,7 +193,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
                 }
             }
 
-            Matcher matcher = CHECK_PATTERN.matcher(processedLine);
+            Matcher matcher = plugin.checkPattern.matcher(processedLine);
             StringBuilder sb = new StringBuilder();
             while (matcher.find()) {
                 boolean met = isConditionMet(stripColors(matcher.group(1)), stripColors(matcher.group(3)), matcher.group(2));

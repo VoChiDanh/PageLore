@@ -12,10 +12,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Main plugin class for PageLore.
  * Handles initialization, configuration loading, caching, and task management.
+ * All dynamic hardcoded tags are cached here to prevent I/O delays.
  */
 public class PageLore extends JavaPlugin {
 
@@ -38,6 +40,12 @@ public class PageLore extends JavaPlugin {
     public int titleStay;
     public int titleFadeOut;
 
+    // Extracted hardcoded variables
+    public String papiTag;
+    public String checkTag;
+    public String nbtPageKey;
+    public Pattern checkPattern;
+
     public List<String> nextPageControls = new ArrayList<>();
     public List<String> previousPageControls = new ArrayList<>();
 
@@ -45,11 +53,6 @@ public class PageLore extends JavaPlugin {
     private ConfigUtils messagesConfig;
     private AutoUpdateTask autoUpdateTask;
 
-    /**
-     * Retrieves the singleton instance of the plugin.
-     *
-     * @return The PageLore instance.
-     */
     public static PageLore getInstance() {
         return instance;
     }
@@ -83,7 +86,8 @@ public class PageLore extends JavaPlugin {
     }
 
     /**
-     * Loads and caches configuration values into memory to avoid heavy file I/O operations.
+     * Loads and caches configuration values into memory.
+     * Pre-compiles the regex pattern for condition checking to save CPU cycles.
      */
     public void loadCache() {
         hasPapi = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
@@ -107,11 +111,16 @@ public class PageLore extends JavaPlugin {
         titleFadeIn = settingsConfig.getInt("settings.cooldown.title-settings.fade-in", 10);
         titleStay = settingsConfig.getInt("settings.cooldown.title-settings.stay", 40);
         titleFadeOut = settingsConfig.getInt("settings.cooldown.title-settings.fade-out", 10);
+
+        // Load advanced hardcoded strings and build regex pattern
+        papiTag = settingsConfig.getString("advanced.papi-tag", "{papi:");
+        checkTag = settingsConfig.getString("advanced.check-tag", "{check:");
+        nbtPageKey = settingsConfig.getString("advanced.nbt-page-key", "current_page");
+
+        String escapedCheckTag = Pattern.quote(checkTag);
+        checkPattern = Pattern.compile(escapedCheckTag + "(.+?)(>=|<=|>|<|==|!=)(.+?)\\}");
     }
 
-    /**
-     * Starts the auto-update task for live placeholder refreshing.
-     */
     public void startTask() {
         stopTask();
         int updateInterval = settingsConfig.getInt("settings.auto-update-interval", 60);
@@ -121,9 +130,6 @@ public class PageLore extends JavaPlugin {
         }
     }
 
-    /**
-     * Stops the auto-update task safely.
-     */
     public void stopTask() {
         if (autoUpdateTask != null && !autoUpdateTask.isCancelled()) {
             autoUpdateTask.cancel();

@@ -29,7 +29,6 @@ import java.util.UUID;
  */
 public class InventoryClickListener implements Listener {
 
-    // Throttles the cooldown message spam when players hold down the interact key
     private final Map<UUID, Long> lastMsgMap = new HashMap<>();
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -95,7 +94,6 @@ public class InventoryClickListener implements Listener {
                 long timeLeft = (lastTime + cooldownMillis) - currentTime;
                 if (timeLeft > 0) {
                     Long lastMsg = lastMsgMap.get(player.getUniqueId());
-                    // Only dispatch the UI message once per second to prevent network choking
                     if (lastMsg == null || currentTime - lastMsg >= 1000) {
                         sendCooldownMessage(player, plugin, timeLeft);
                         lastMsgMap.put(player.getUniqueId(), currentTime);
@@ -106,7 +104,8 @@ public class InventoryClickListener implements Listener {
             plugin.cooldowns.put(player.getUniqueId(), currentTime);
         }
 
-        NamespacedKey key = new NamespacedKey(plugin, "current_page");
+        // Apply dynamically loaded Persistent Data key from config
+        NamespacedKey key = new NamespacedKey(plugin, plugin.nbtPageKey);
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
 
         if (isNext) {
@@ -124,13 +123,6 @@ public class InventoryClickListener implements Listener {
         playClickSound(player, plugin);
     }
 
-    /**
-     * Dispatches the cooldown warning message based on the configured message type.
-     *
-     * @param player   The player receiving the message.
-     * @param plugin   The plugin instance.
-     * @param timeLeft Remaining cooldown time in milliseconds.
-     */
     private void sendCooldownMessage(Player player, PageLore plugin, long timeLeft) {
         String rawMsg = plugin.getMessages().getString("cooldown-active");
         if (rawMsg == null || rawMsg.isEmpty()) return;
@@ -152,12 +144,6 @@ public class InventoryClickListener implements Listener {
         }
     }
 
-    /**
-     * Plays the pagination sound to the player.
-     *
-     * @param player The target player.
-     * @param plugin The plugin instance.
-     */
     private void playClickSound(Player player, PageLore plugin) {
         if (!plugin.playSound) return;
         try {
