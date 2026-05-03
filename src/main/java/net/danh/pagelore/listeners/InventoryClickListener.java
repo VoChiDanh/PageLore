@@ -5,11 +5,7 @@ import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
-import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -28,10 +24,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Handles inventory interactions, page switching, and throttled cooldown validations.
- * Implements a strict anti-desync fix for specialized clicks like SWAP_OFFHAND ('F' key).
- */
 public class InventoryClickListener implements Listener {
 
     private final Map<UUID, Long> lastMsgMap = new HashMap<>();
@@ -39,7 +31,9 @@ public class InventoryClickListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onGameModeChange(PlayerGameModeChangeEvent e) {
         Player player = e.getPlayer();
-        Bukkit.getScheduler().runTaskLater(PageLore.getInstance(), player::updateInventory, 1L);
+        PageLore plugin = PageLore.getInstance();
+        if (plugin == null) return;
+        Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, plugin.desyncFixDelayTicks);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -54,6 +48,8 @@ public class InventoryClickListener implements Listener {
         if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
 
         PageLore plugin = PageLore.getInstance();
+        if (plugin == null) return;
+
         ClickType click = e.getClick();
         String clickName = click.name();
 
@@ -66,7 +62,6 @@ public class InventoryClickListener implements Listener {
         int totalPages = 1;
         boolean hasPageTag = false;
 
-        // Safely evaluate total pages using true plain text to avoid reading internal Kyori debug structures.
         if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
             if (meta.lore() != null) {
                 for (Component comp : meta.lore()) {
@@ -89,7 +84,6 @@ public class InventoryClickListener implements Listener {
 
         if (!hasPageTag) return;
 
-        // Immediately cancel the interaction to prevent the player from physically grabbing the item.
         e.setCancelled(true);
 
         if (plugin.cooldownEnabled) {
@@ -101,11 +95,11 @@ public class InventoryClickListener implements Listener {
                 long timeLeft = (lastTime + cooldownMillis) - currentTime;
                 if (timeLeft > 0) {
                     Long lastMsg = lastMsgMap.get(player.getUniqueId());
-                    if (lastMsg == null || currentTime - lastMsg >= 1000) {
+                    if (lastMsg == null || currentTime - lastMsg >= plugin.messageThrottleMs) {
                         sendCooldownMessage(player, plugin, timeLeft);
                         lastMsgMap.put(player.getUniqueId(), currentTime);
                     }
-                    return; // Prevent turning the page if still on cooldown
+                    return;
                 }
             }
             plugin.cooldowns.put(player.getUniqueId(), currentTime);
@@ -128,10 +122,7 @@ public class InventoryClickListener implements Listener {
 
         playClickSound(player, plugin);
 
-        // Core fix for "Messed up / Strange pages" when spamming 'F' key.
-        // Cancelling a SWAP_OFFHAND click causes the client to desynchronize its visual UI state.
-        // By forcing an inventory update 1 tick later, we assure perfect packet synchronization.
-        Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
+        Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, plugin.desyncFixDelayTicks);
     }
 
     private void sendCooldownMessage(Player player, PageLore plugin, long timeLeft) {
@@ -173,7 +164,10 @@ public class InventoryClickListener implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        PageLore.getInstance().cooldowns.remove(e.getPlayer().getUniqueId());
+        PageLore plugin = PageLore.getInstance();
+        if (plugin != null) {
+            plugin.cooldowns.remove(e.getPlayer().getUniqueId());
+        }
         lastMsgMap.remove(e.getPlayer().getUniqueId());
     }
 }

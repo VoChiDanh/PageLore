@@ -8,9 +8,6 @@ import net.danh.pagelore.PageLore;
 import net.danh.pagelore.command.subcommands.ReloadCommand;
 import net.danh.pagelore.utils.ColorUtils;
 
-/**
- * Handles the base command registration for the plugin utilizing Brigadier.
- */
 public class PageLoreCommand {
     private final PageLore plugin;
 
@@ -18,15 +15,10 @@ public class PageLoreCommand {
         this.plugin = plugin;
     }
 
-    /**
-     * Builds and returns the main command node.
-     *
-     * @return The constructed LiteralCommandNode.
-     */
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
         return Commands.literal("pagelore")
                 .requires(source -> {
-                    if (!source.getSender().hasPermission("pagelore.admin")) {
+                    if (!source.getSender().hasPermission(plugin.adminPermission)) {
                         source.getSender().sendMessage(ColorUtils.parseWithPrefix(plugin.getMessages().getString("no-permission")));
                         return false;
                     }

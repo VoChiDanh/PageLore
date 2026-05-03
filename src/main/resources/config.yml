@@ -7,6 +7,9 @@ settings:
   # Recommendation: Keep it plain, do not use colors here.
   page-separator: "{page}"
 
+  # Permission required to use admin commands
+  permission: "pagelore.admin"
+
   # Should the plugin play a sound when navigating pages? (true/false)
   play-sound: true
   # Sound type from Bukkit Sound Enum. Example: UI_BUTTON_CLICK, ENTITY_BAT_TAKEOFF
@@ -21,6 +24,14 @@ settings:
   # Recommendation: Set to 20 (1 second) or 60 (3 seconds) for optimal results.
   auto-update-interval: 20
 
+  # Desync fix delay when interacting with special clicks like SWAP_OFFHAND (ticks)
+  desync-fix-delay-ticks: 1
+
+  # Memory & Performance optimization caching
+  cache:
+    expire-time-seconds: 1
+    maximum-size: 5000
+
   # Cooldown settings for turning pages to prevent macro/spam abuse and lag.
   cooldown:
     # Set to true to enable the cooldown, false to disable.
@@ -32,6 +43,9 @@ settings:
     # Available options: CHAT, ACTION_BAR, TITLE, SUBTITLE
     # Recommendation: ACTION_BAR is the least intrusive.
     message-type: "ACTION_BAR"
+
+    # Delay between consecutive cooldown messages in milliseconds (1000 = 1 second)
+    message-throttle-ms: 1000
 
     # Advanced settings specifically for TITLE and SUBTITLE modes.
     # Measured in ticks (20 ticks = 1 second).

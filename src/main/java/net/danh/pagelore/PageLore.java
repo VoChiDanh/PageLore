@@ -11,18 +11,9 @@ import net.danh.pagelore.utils.ConfigUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Pattern;
 
-/**
- * Main plugin class for PageLore.
- * Handles initialization, configuration loading, caching, and task management.
- * Dynamic hardcoded tags are stored centrally to optimize memory and CPU usage.
- */
 public class PageLore extends JavaPlugin {
 
     private static PageLore instance;
@@ -44,7 +35,13 @@ public class PageLore extends JavaPlugin {
     public int titleStay;
     public int titleFadeOut;
 
-    // Extracted logic tags for advanced parsing
+    // Extracted hardcoded properties
+    public String adminPermission;
+    public int cacheExpireSeconds;
+    public int cacheMaxSize;
+    public long messageThrottleMs;
+    public long desyncFixDelayTicks;
+
     public String papiTag;
     public String checkTag;
     public String nbtPageKey;
@@ -56,6 +53,7 @@ public class PageLore extends JavaPlugin {
     private ConfigUtils settingsConfig;
     private ConfigUtils messagesConfig;
     private AutoUpdateTask autoUpdateTask;
+    private ItemPacketListener itemPacketListener;
 
     public static PageLore getInstance() {
         return instance;
@@ -76,7 +74,9 @@ public class PageLore extends JavaPlugin {
         });
 
         getServer().getPluginManager().registerEvents(new InventoryClickListener(), this);
-        PacketEvents.getAPI().getEventManager().registerListener(new ItemPacketListener(), PacketListenerPriority.HIGHEST);
+
+        itemPacketListener = new ItemPacketListener();
+        PacketEvents.getAPI().getEventManager().registerListener(itemPacketListener, PacketListenerPriority.HIGHEST);
 
         startTask();
     }
@@ -84,21 +84,29 @@ public class PageLore extends JavaPlugin {
     @Override
     public void onDisable() {
         stopTask();
+
+        // Safely unregister packet listener to prevent async NPEs during shutdown
+        if (itemPacketListener != null) {
+            PacketEvents.getAPI().getEventManager().unregisterListener(itemPacketListener);
+        }
+
         settingsConfig.save();
         messagesConfig.save();
         instance = null;
     }
 
-    /**
-     * Loads and caches configuration values into memory.
-     * Pre-compiles the regex pattern for condition checking to drastically save CPU cycles during live packet listening.
-     */
     public void loadCache() {
         hasPapi = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
         separator = settingsConfig.getString("settings.page-separator", "{page}");
         metSymbol = settingsConfig.getString("requirements.met-symbol", "<green>✔");
         unmetSymbol = settingsConfig.getString("requirements.unmet-symbol", "<dark_gray>✘");
         isDebug = settingsConfig.getBoolean("settings.debug", false);
+
+        adminPermission = settingsConfig.getString("settings.permission", "pagelore.admin");
+        cacheExpireSeconds = settingsConfig.getInt("settings.cache.expire-time-seconds", 1);
+        cacheMaxSize = settingsConfig.getInt("settings.cache.maximum-size", 5000);
+        messageThrottleMs = (long) settingsConfig.getDouble("settings.cooldown.message-throttle-ms", 1000.0);
+        desyncFixDelayTicks = settingsConfig.getInt("settings.desync-fix-delay-ticks", 1);
 
         playSound = settingsConfig.getBoolean("settings.play-sound", true);
         soundName = settingsConfig.getString("settings.sound-type", "ui.button.click");
@@ -122,6 +130,10 @@ public class PageLore extends JavaPlugin {
 
         String escapedCheckTag = Pattern.quote(checkTag);
         checkPattern = Pattern.compile(escapedCheckTag + "(.+?)(>=|<=|>|<|==|!=)(.+?)\\}");
+
+        if (itemPacketListener != null) {
+            itemPacketListener.setupCache();
+        }
     }
 
     public void startTask() {

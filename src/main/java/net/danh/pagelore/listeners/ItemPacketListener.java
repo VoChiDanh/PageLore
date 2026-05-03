@@ -33,21 +33,30 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Highly optimized packet listener utilizing Bukkit Meta Fast-Failing.
- * Caches ONLY the processed lore to preserve all other item data (enchantments, display names)
- * while completely eliminating GUI spam lag.
- */
 public class ItemPacketListener extends PacketListenerAbstract implements PacketListener {
 
-    private final Cache<Integer, List<Component>> loreCache =
-            CacheBuilder.newBuilder()
-                    .expireAfterWrite(1, TimeUnit.SECONDS)
-                    .maximumSize(5000)
-                    .build();
+    private Cache<Integer, List<Component>> loreCache;
+
+    public ItemPacketListener() {
+        setupCache();
+    }
+
+    public void setupCache() {
+        PageLore plugin = PageLore.getInstance();
+        int expire = plugin != null ? plugin.cacheExpireSeconds : 1;
+        int maxSize = plugin != null ? plugin.cacheMaxSize : 5000;
+
+        loreCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(expire, TimeUnit.SECONDS)
+                .maximumSize(maxSize)
+                .build();
+    }
 
     @Override
     public void onPacketSend(PacketSendEvent event) {
+        PageLore plugin = PageLore.getInstance();
+        if (plugin == null) return; // FIX NPE: Plugin is disabling
+
         Player player = (Player) event.getPlayer();
         if (player == null || player.getGameMode() == GameMode.CREATIVE) return;
 
@@ -58,7 +67,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
             if (peItem == null) return;
             ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
 
-            if (applyPageLore(player, bukkitItem)) {
+            if (applyPageLore(player, bukkitItem, plugin)) {
                 setSlot.setItem(SpigotConversionUtil.fromBukkitItemStack(bukkitItem));
             }
 
@@ -73,7 +82,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
 
                 ItemStack bukkitItem = SpigotConversionUtil.toBukkitItemStack(peItem);
 
-                if (applyPageLore(player, bukkitItem)) {
+                if (applyPageLore(player, bukkitItem, plugin)) {
                     items.set(i, SpigotConversionUtil.fromBukkitItemStack(bukkitItem));
                     changed = true;
                 }
@@ -82,19 +91,10 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         }
     }
 
-    /**
-     * Safely evaluates placeholders and pagination logic without destroying other NBT data.
-     * Caches the math/PAPI heavy operations based strictly on raw lore state and page number.
-     *
-     * @param player     The viewing player.
-     * @param bukkitItem The Bukkit item to modify.
-     * @return true if the item's lore was modified, false otherwise.
-     */
-    private boolean applyPageLore(Player player, ItemStack bukkitItem) {
+    private boolean applyPageLore(Player player, ItemStack bukkitItem, PageLore plugin) {
         if (bukkitItem == null || !bukkitItem.hasItemMeta() || !bukkitItem.getItemMeta().hasLore()) return false;
 
         ItemMeta meta = bukkitItem.getItemMeta();
-        PageLore plugin = PageLore.getInstance();
         List<String> rawLore = new ArrayList<>();
         boolean needsProcessing = false;
 
@@ -102,7 +102,6 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
             List<Component> components = meta.lore();
             if (components != null) {
                 for (Component c : components) {
-                    // Safe string serialization guarantees we detect internal tags properly
                     String serialized = MiniMessage.miniMessage().serialize(c);
                     if (serialized.contains(plugin.separator) || serialized.contains(plugin.papiTag) || serialized.contains(plugin.checkTag)) {
                         needsProcessing = true;
