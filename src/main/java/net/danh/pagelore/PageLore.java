@@ -8,16 +8,21 @@ import net.danh.pagelore.listeners.InventoryClickListener;
 import net.danh.pagelore.listeners.ItemPacketListener;
 import net.danh.pagelore.tasks.AutoUpdateTask;
 import net.danh.pagelore.utils.ConfigUtils;
+import net.danh.pagelore.utils.SchedulerUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public class PageLore extends JavaPlugin {
 
     private static PageLore instance;
-    public final Map<UUID, Long> cooldowns = new HashMap<>();
+    public final Map<UUID, Long> cooldowns = new ConcurrentHashMap<>();
 
     public boolean hasPapi;
     public String separator;
@@ -45,14 +50,17 @@ public class PageLore extends JavaPlugin {
     public String papiTag;
     public String checkTag;
     public String nbtPageKey;
+    public String nbtFullLoreKey;
     public Pattern checkPattern;
 
     public List<String> nextPageControls = new ArrayList<>();
     public List<String> previousPageControls = new ArrayList<>();
+    public List<String> fullLoreControls = new ArrayList<>();
 
     private ConfigUtils settingsConfig;
     private ConfigUtils messagesConfig;
     private AutoUpdateTask autoUpdateTask;
+    private SchedulerUtils.TaskHandle autoUpdateTaskHandle;
     private ItemPacketListener itemPacketListener;
 
     public static PageLore getInstance() {
@@ -115,6 +123,7 @@ public class PageLore extends JavaPlugin {
 
         nextPageControls = settingsConfig.getStringList("controls.next-page");
         previousPageControls = settingsConfig.getStringList("controls.previous-page");
+        fullLoreControls = settingsConfig.getStringList("controls.full-lore");
 
         cooldownEnabled = settingsConfig.getBoolean("settings.cooldown.enabled", true);
         cooldownTime = settingsConfig.getDouble("settings.cooldown.time", 0.5);
@@ -127,6 +136,7 @@ public class PageLore extends JavaPlugin {
         papiTag = settingsConfig.getString("advanced.papi-tag", "{papi:");
         checkTag = settingsConfig.getString("advanced.check-tag", "{check:");
         nbtPageKey = settingsConfig.getString("advanced.nbt-page-key", "current_page");
+        nbtFullLoreKey = settingsConfig.getString("advanced.nbt-full-lore-key", "show_full_lore");
 
         String escapedCheckTag = Pattern.quote(checkTag);
         checkPattern = Pattern.compile(escapedCheckTag + "(.+?)(>=|<=|>|<|==|!=)(.+?)\\}");
@@ -141,14 +151,16 @@ public class PageLore extends JavaPlugin {
         int updateInterval = settingsConfig.getInt("settings.auto-update-interval", 60);
         if (updateInterval > 0) {
             autoUpdateTask = new AutoUpdateTask();
-            autoUpdateTask.runTaskTimer(this, updateInterval, updateInterval);
+            autoUpdateTaskHandle = SchedulerUtils.runGlobalTimer(this, autoUpdateTask::run, updateInterval, updateInterval);
         }
     }
 
     public void stopTask() {
-        if (autoUpdateTask != null && !autoUpdateTask.isCancelled()) {
-            autoUpdateTask.cancel();
+        if (autoUpdateTaskHandle != null) {
+            autoUpdateTaskHandle.cancel();
+            autoUpdateTaskHandle = null;
         }
+        autoUpdateTask = null;
     }
 
     public ConfigUtils getSettings() {

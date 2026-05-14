@@ -47,9 +47,14 @@ public class ConfigUtils {
     }
 
     private void autoUpdateConfig(boolean removeObsolete) {
-        InputStream defaultStream = plugin.getResource(name);
-        if (defaultStream == null) return;
-        YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
+        YamlConfiguration defaultConfig;
+        try (InputStream defaultStream = plugin.getResource(name)) {
+            if (defaultStream == null) return;
+            defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            plugin.getLogger().warning("Could not read default " + name + ": " + e.getMessage());
+            return;
+        }
         boolean changed = false;
 
         for (String key : defaultConfig.getKeys(true)) {

@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 
 public class ItemPacketListener extends PacketListenerAbstract implements PacketListener {
 
-    private Cache<Integer, List<Component>> loreCache;
+    private Cache<LoreCacheKey, List<Component>> loreCache;
 
     public ItemPacketListener() {
         setupCache();
@@ -124,9 +124,19 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         if (!needsProcessing) return false;
 
         NamespacedKey key = new NamespacedKey(plugin, plugin.nbtPageKey);
+        NamespacedKey fullLoreKey = new NamespacedKey(plugin, plugin.nbtFullLoreKey);
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
+        boolean showFullLore = meta.getPersistentDataContainer().getOrDefault(fullLoreKey, PersistentDataType.BYTE, (byte) 0) == 1;
 
-        int cacheKey = Objects.hash(player.getUniqueId(), currentPage, rawLore.hashCode());
+        LoreCacheKey cacheKey = new LoreCacheKey(
+                player.getUniqueId().toString(),
+                currentPage,
+                showFullLore,
+                bukkitItem.getType().name(),
+                Objects.hashCode(meta.displayName()),
+                bukkitItem.hashCode(),
+                List.copyOf(rawLore)
+        );
 
         List<Component> finalLore = loreCache.getIfPresent(cacheKey);
 
@@ -140,7 +150,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
                     pageIndex++;
                     continue;
                 }
-                if (!hasPage || pageIndex == currentPage) pageLore.add(line);
+                if (showFullLore || !hasPage || pageIndex == currentPage) pageLore.add(line);
             }
 
             finalLore = new ArrayList<>(pageLore.size());
@@ -159,7 +169,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
                 StringBuilder sb = new StringBuilder();
                 while (matcher.find()) {
                     boolean met = isConditionMet(stripColors(matcher.group(1)), stripColors(matcher.group(3)), matcher.group(2));
-                    matcher.appendReplacement(sb, met ? plugin.metSymbol : plugin.unmetSymbol);
+                    matcher.appendReplacement(sb, Matcher.quoteReplacement(met ? plugin.metSymbol : plugin.unmetSymbol));
                 }
                 matcher.appendTail(sb);
 
@@ -177,6 +187,13 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
 
         bukkitItem.setItemMeta(meta);
         return true;
+    }
+
+    /**
+     * Includes item identity fields so GUI items with similar lore templates do not reuse another item's processed lore.
+     */
+    private record LoreCacheKey(String playerId, int page, boolean showFullLore, String material, int displayNameHash,
+                                int itemHash, List<String> rawLore) {
     }
 
     private String stripColors(String input) {

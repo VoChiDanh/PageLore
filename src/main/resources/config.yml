@@ -65,6 +65,10 @@ controls:
   # Inputs to go to the PREVIOUS page
   previous-page:
     - "SHIFT_RIGHT"
+  # Inputs to toggle full lore mode for the hovered item.
+  # Full lore mode shows every lore section at once and hides the page separator lines.
+  full-lore:
+    - "MIDDLE"
 
 # Logic parsing for placeholders, allowing dynamic item requirements
 # Usage in lore: {check:{papi:placeholder}>=value}
@@ -84,3 +88,4 @@ advanced:
   papi-tag: "{papi:"
   check-tag: "{check:"
   nbt-page-key: "current_page"
+  nbt-full-lore-key: "show_full_lore"

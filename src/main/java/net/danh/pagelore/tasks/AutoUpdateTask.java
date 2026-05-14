@@ -2,6 +2,7 @@ package net.danh.pagelore.tasks;
 
 import net.danh.pagelore.PageLore;
 import net.danh.pagelore.utils.ColorUtils;
+import net.danh.pagelore.utils.SchedulerUtils;
 import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -10,44 +11,47 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.List;
 
 /**
  * Periodically refreshes player inventories to keep placeholders live.
- * Fully refactored to evaluate actual plain text rather than component data hashes.
+ * Player inventory access is moved onto the owning entity thread on Folia.
  */
-public class AutoUpdateTask extends BukkitRunnable {
+public class AutoUpdateTask {
 
-    @Override
     public void run() {
         PageLore plugin = PageLore.getInstance();
+        if (plugin == null) return;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.getGameMode() == GameMode.CREATIVE) continue;
+            SchedulerUtils.runEntity(plugin, player, () -> refreshPlayer(player, plugin));
+        }
+    }
 
-            boolean needsUpdate = false;
+    private void refreshPlayer(Player player, PageLore plugin) {
+        if (!player.isOnline() || player.getGameMode() == GameMode.CREATIVE) return;
 
-            if (hasPageLoreOrPapi(player.getInventory().getItemInMainHand(), plugin) ||
-                    hasPageLoreOrPapi(player.getInventory().getItemInOffHand(), plugin)) {
-                needsUpdate = true;
-            }
+        boolean needsUpdate = false;
 
-            if (!needsUpdate && player.getOpenInventory().getTopInventory().getSize() > 0 &&
-                    player.getOpenInventory().getTopInventory().getType() != InventoryType.CRAFTING) {
+        if (hasPageLoreOrPapi(player.getInventory().getItemInMainHand(), plugin) ||
+                hasPageLoreOrPapi(player.getInventory().getItemInOffHand(), plugin)) {
+            needsUpdate = true;
+        }
 
-                for (ItemStack item : player.getOpenInventory().getTopInventory().getContents()) {
-                    if (hasPageLoreOrPapi(item, plugin)) {
-                        needsUpdate = true;
-                        break;
-                    }
+        if (!needsUpdate && player.getOpenInventory().getTopInventory().getSize() > 0 &&
+                player.getOpenInventory().getTopInventory().getType() != InventoryType.CRAFTING) {
+
+            for (ItemStack item : player.getOpenInventory().getTopInventory().getContents()) {
+                if (hasPageLoreOrPapi(item, plugin)) {
+                    needsUpdate = true;
+                    break;
                 }
             }
+        }
 
-            if (needsUpdate) {
-                player.updateInventory();
-            }
+        if (needsUpdate) {
+            player.updateInventory();
         }
     }
 
