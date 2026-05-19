@@ -1,3 +1,8 @@
+---
+layout: page
+title: MMOItems Guide
+---
+
 PageLore works with MMOItems as long as the page separator is stored as a normal lore line.
 
 ## Correct Page Splitting
