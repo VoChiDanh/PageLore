@@ -2,7 +2,6 @@
 layout: page
 title: Folia Notes
 ---
-
 PageLore declares Folia support in `paper-plugin.yml`.
 
 ## What Is Folia-Safe
@@ -20,6 +19,7 @@ Use a reasonable refresh interval:
 ```yaml
 settings:
   auto-update-interval: 20
+
 ```
 
 Set it to `0` only if your lore does not need live PlaceholderAPI refreshes.

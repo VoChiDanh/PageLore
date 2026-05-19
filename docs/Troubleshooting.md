@@ -2,7 +2,6 @@
 layout: page
 title: Troubleshooting
 ---
-
 ## Pages Do Not Change
 
 - Confirm the item lore contains `{page}` on its own line.
