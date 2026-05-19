@@ -18,5 +18,5 @@ selected page and full-lore mode.
 - PacketEvents is required.
 - PlaceholderAPI is optional.
 
-Start with [Installation](Installation), then read [Lore Format](Lore-Format). MMOItems users should also
-read [MMOItems Guide](MMOItems-Guide).
+Start with [Installation](Installation.md), then read [Lore Format](Lore-Format.md). MMOItems users should also
+read [MMOItems Guide](MMOItems-Guide.md).

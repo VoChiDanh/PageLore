@@ -1,8 +1,0 @@
-- [Home](Home)
-- [Installation](Installation)
-- [Configuration](Configuration)
-- [Lore Format](Lore-Format)
-- [MMOItems Guide](MMOItems-Guide)
-- [Other Plugins](Other-Plugins)
-- [Folia Notes](Folia-Notes)
-- [Troubleshooting](Troubleshooting)

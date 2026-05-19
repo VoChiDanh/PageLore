@@ -1,0 +1,8 @@
+- [Home](Home.md)
+- [Installation](Installation.md)
+- [Configuration](Configuration.md)
+- [Lore Format](Lore-Format.md)
+- [MMOItems Guide](MMOItems-Guide.md)
+- [Other Plugins](Other-Plugins.md)
+- [Folia Notes](Folia-Notes.md)
+- [Troubleshooting](Troubleshooting.md)
