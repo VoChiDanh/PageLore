@@ -1,0 +1,15 @@
+title: PageLore Wiki
+description: Complete English documentation for the PageLore Minecraft dungeon plugin.
+theme: minima
+markdown: kramdown
+
+header_pages:
+  - Home.md
+  - Installation.md
+  - _Sidebar.md
+  - Configuration.md
+  - Folia-Notes.md
+  - Lore-Format.md
+  - MMOItems-Guide.md
+  - Other-Plugins.md
+  - Troubleshooting.md
