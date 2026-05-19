@@ -12,10 +12,7 @@ import net.danh.pagelore.utils.SchedulerUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -40,7 +37,6 @@ public class PageLore extends JavaPlugin {
     public int titleStay;
     public int titleFadeOut;
 
-    // Extracted hardcoded properties
     public String adminPermission;
     public int cacheExpireSeconds;
     public int cacheMaxSize;
@@ -53,9 +49,9 @@ public class PageLore extends JavaPlugin {
     public String nbtFullLoreKey;
     public Pattern checkPattern;
 
-    public List<String> nextPageControls = new ArrayList<>();
-    public List<String> previousPageControls = new ArrayList<>();
-    public List<String> fullLoreControls = new ArrayList<>();
+    public Set<String> nextPageControls = new HashSet<>();
+    public Set<String> previousPageControls = new HashSet<>();
+    public Set<String> fullLoreControls = new HashSet<>();
 
     private ConfigUtils settingsConfig;
     private ConfigUtils messagesConfig;
@@ -93,11 +89,13 @@ public class PageLore extends JavaPlugin {
     public void onDisable() {
         stopTask();
 
-        // Safely unregister packet listener to prevent async NPEs during shutdown
         if (itemPacketListener != null) {
             PacketEvents.getAPI().getEventManager().unregisterListener(itemPacketListener);
+            itemPacketListener.clearCache();
+            itemPacketListener = null;
         }
 
+        cooldowns.clear();
         settingsConfig.save();
         messagesConfig.save();
         instance = null;
@@ -106,32 +104,32 @@ public class PageLore extends JavaPlugin {
     public void loadCache() {
         hasPapi = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
         separator = settingsConfig.getString("settings.page-separator", "{page}");
-        metSymbol = settingsConfig.getString("requirements.met-symbol", "<green>✔");
-        unmetSymbol = settingsConfig.getString("requirements.unmet-symbol", "<dark_gray>✘");
+        metSymbol = settingsConfig.getString("requirements.met-symbol", "<green>[OK]");
+        unmetSymbol = settingsConfig.getString("requirements.unmet-symbol", "<dark_gray>[NO]");
         isDebug = settingsConfig.getBoolean("settings.debug", false);
 
         adminPermission = settingsConfig.getString("settings.permission", "pagelore.admin");
-        cacheExpireSeconds = settingsConfig.getInt("settings.cache.expire-time-seconds", 1);
-        cacheMaxSize = settingsConfig.getInt("settings.cache.maximum-size", 5000);
-        messageThrottleMs = (long) settingsConfig.getDouble("settings.cooldown.message-throttle-ms", 1000.0);
-        desyncFixDelayTicks = settingsConfig.getInt("settings.desync-fix-delay-ticks", 1);
+        cacheExpireSeconds = Math.max(1, settingsConfig.getInt("settings.cache.expire-time-seconds", 1));
+        cacheMaxSize = Math.max(100, settingsConfig.getInt("settings.cache.maximum-size", 5000));
+        messageThrottleMs = Math.max(0L, (long) settingsConfig.getDouble("settings.cooldown.message-throttle-ms", 1000.0));
+        desyncFixDelayTicks = Math.max(1, settingsConfig.getInt("settings.desync-fix-delay-ticks", 1));
 
         playSound = settingsConfig.getBoolean("settings.play-sound", true);
         soundName = settingsConfig.getString("settings.sound-type", "ui.button.click");
-        soundVolume = (float) settingsConfig.getDouble("settings.sound-volume", 1.0);
-        soundPitch = (float) settingsConfig.getDouble("settings.sound-pitch", 1.0);
+        soundVolume = Math.max(0.0f, (float) settingsConfig.getDouble("settings.sound-volume", 1.0));
+        soundPitch = Math.max(0.0f, (float) settingsConfig.getDouble("settings.sound-pitch", 1.0));
 
-        nextPageControls = settingsConfig.getStringList("controls.next-page");
-        previousPageControls = settingsConfig.getStringList("controls.previous-page");
-        fullLoreControls = settingsConfig.getStringList("controls.full-lore");
+        nextPageControls = normalizeControls(settingsConfig.getStringList("controls.next-page"));
+        previousPageControls = normalizeControls(settingsConfig.getStringList("controls.previous-page"));
+        fullLoreControls = normalizeControls(settingsConfig.getStringList("controls.full-lore"));
 
         cooldownEnabled = settingsConfig.getBoolean("settings.cooldown.enabled", true);
-        cooldownTime = settingsConfig.getDouble("settings.cooldown.time", 0.5);
+        cooldownTime = Math.max(0.0, settingsConfig.getDouble("settings.cooldown.time", 0.5));
 
         cooldownMessageType = settingsConfig.getString("settings.cooldown.message-type", "ACTION_BAR").toUpperCase();
-        titleFadeIn = settingsConfig.getInt("settings.cooldown.title-settings.fade-in", 10);
-        titleStay = settingsConfig.getInt("settings.cooldown.title-settings.stay", 40);
-        titleFadeOut = settingsConfig.getInt("settings.cooldown.title-settings.fade-out", 10);
+        titleFadeIn = Math.max(0, settingsConfig.getInt("settings.cooldown.title-settings.fade-in", 10));
+        titleStay = Math.max(0, settingsConfig.getInt("settings.cooldown.title-settings.stay", 40));
+        titleFadeOut = Math.max(0, settingsConfig.getInt("settings.cooldown.title-settings.fade-out", 10));
 
         papiTag = settingsConfig.getString("advanced.papi-tag", "{papi:");
         checkTag = settingsConfig.getString("advanced.check-tag", "{check:");
@@ -150,6 +148,7 @@ public class PageLore extends JavaPlugin {
         stopTask();
         int updateInterval = settingsConfig.getInt("settings.auto-update-interval", 60);
         if (updateInterval > 0) {
+            updateInterval = Math.max(1, updateInterval);
             autoUpdateTask = new AutoUpdateTask();
             autoUpdateTaskHandle = SchedulerUtils.runGlobalTimer(this, autoUpdateTask::run, updateInterval, updateInterval);
         }
@@ -161,6 +160,16 @@ public class PageLore extends JavaPlugin {
             autoUpdateTaskHandle = null;
         }
         autoUpdateTask = null;
+    }
+
+    private Set<String> normalizeControls(List<String> configuredControls) {
+        Set<String> controls = new HashSet<>();
+        for (String control : configuredControls) {
+            if (control != null && !control.isBlank()) {
+                controls.add(control.trim().toUpperCase());
+            }
+        }
+        return controls;
     }
 
     public ConfigUtils getSettings() {

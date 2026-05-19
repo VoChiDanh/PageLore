@@ -1,0 +1,37 @@
+name: Compatibility report
+description: Report an integration issue with another plugin.
+title: "[Compatibility]: "
+labels: [ "compatibility" ]
+body:
+  - type: input
+    id: plugin
+    attributes:
+      label: Other plugin name and version
+      placeholder: "MMOItems x.x.x"
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Server software and version
+      placeholder: "Folia 1.21.x"
+    validations:
+      required: true
+  - type: textarea
+    id: item
+    attributes:
+      label: Item or lore configuration
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: conflict
+    attributes:
+      label: What conflicts or fails?
+      description: Include click conflicts, placeholder output, missing pages, or rendering problems.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Extra notes

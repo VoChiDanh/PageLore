@@ -4,6 +4,7 @@ main: net.danh.pagelore.PageLore
 api-version: '1.21'
 load: POSTWORLD
 authors: [ VoChiDanh ]
+folia-supported: true
 dependencies:
   server:
     packetevents:

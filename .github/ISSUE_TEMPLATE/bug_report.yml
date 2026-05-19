@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a PageLore bug.
+title: "[Bug]: "
+labels: [ "bug" ]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for reporting a PageLore issue. Please include enough detail to reproduce it."
+  - type: input
+    id: server
+    attributes:
+      label: Server software and version
+      description: "Example: Folia 1.21.4 build 100 or Paper 1.21.4 build 200."
+      placeholder: "Folia 1.21.x"
+    validations:
+      required: true
+  - type: input
+    id: pagelore
+    attributes:
+      label: PageLore version
+      placeholder: "1.0"
+    validations:
+      required: true
+  - type: input
+    id: packetevents
+    attributes:
+      label: PacketEvents version
+      placeholder: "2.12.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: folia
+    attributes:
+      label: Are you running Folia?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: plugins
+    attributes:
+      label: Related plugins
+      description: List item, GUI, placeholder, or RPG plugins involved.
+      placeholder: "MMOItems, MMOCore, PlaceholderAPI, ItemsAdder..."
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant config or item lore
+      render: yaml
+      description: Paste only the relevant PageLore config and item lore.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Create an item with...\n2. Click with...\n3. See..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console errors
+      render: text

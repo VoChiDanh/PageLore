@@ -3,7 +3,6 @@ package net.danh.pagelore.listeners;
 import net.danh.pagelore.PageLore;
 import net.danh.pagelore.utils.ColorUtils;
 import net.danh.pagelore.utils.SchedulerUtils;
-import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.GameMode;
@@ -67,22 +66,11 @@ public class InventoryClickListener implements Listener {
         int totalPages = 1;
         boolean hasPageTag = false;
 
-        if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
-            if (meta.lore() != null) {
-                for (Component comp : meta.lore()) {
-                    if (ColorUtils.toPlainText(comp).contains(plugin.separator)) {
-                        hasPageTag = true;
-                        totalPages++;
-                    }
-                }
-            }
-        } else {
-            if (meta.getLore() != null) {
-                for (String line : meta.getLore()) {
-                    if (line.contains(plugin.separator)) {
-                        hasPageTag = true;
-                        totalPages++;
-                    }
+        if (meta.lore() != null) {
+            for (Component comp : meta.lore()) {
+                if (ColorUtils.toPlainText(comp).contains(plugin.separator)) {
+                    hasPageTag = true;
+                    totalPages++;
                 }
             }
         }
@@ -113,6 +101,7 @@ public class InventoryClickListener implements Listener {
         NamespacedKey key = new NamespacedKey(plugin, plugin.nbtPageKey);
         NamespacedKey fullLoreKey = new NamespacedKey(plugin, plugin.nbtFullLoreKey);
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
+        currentPage = Math.max(0, Math.min(currentPage, totalPages - 1));
 
         if (isFullLore) {
             byte currentMode = meta.getPersistentDataContainer().getOrDefault(fullLoreKey, PersistentDataType.BYTE, (byte) 0);
@@ -161,15 +150,10 @@ public class InventoryClickListener implements Listener {
     private void playClickSound(Player player, PageLore plugin) {
         if (!plugin.playSound) return;
         try {
-            if (ServerVersion.isAtLeast(1, 21, 3)) {
-                String formattedSoundName = plugin.soundName.toLowerCase(Locale.ROOT).replace("_", ".");
-                NamespacedKey soundKey = NamespacedKey.minecraft(formattedSoundName);
-                Sound sound = Registry.SOUNDS.get(soundKey);
-                if (sound != null) player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
-            } else {
-                Sound sound = Sound.valueOf(plugin.soundName.toUpperCase(Locale.ROOT));
-                player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
-            }
+            String formattedSoundName = plugin.soundName.toLowerCase(Locale.ROOT).replace("_", ".");
+            NamespacedKey soundKey = NamespacedKey.minecraft(formattedSoundName);
+            Sound sound = Registry.SOUNDS.get(soundKey);
+            if (sound != null) player.playSound(player.getLocation(), sound, plugin.soundVolume, plugin.soundPitch);
         } catch (Exception ignored) {
         }
     }

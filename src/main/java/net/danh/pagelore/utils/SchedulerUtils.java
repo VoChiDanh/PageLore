@@ -14,10 +14,6 @@ public final class SchedulerUtils {
     private SchedulerUtils() {
     }
 
-    public interface TaskHandle {
-        void cancel();
-    }
-
     public static TaskHandle runGlobalTimer(Plugin plugin, Runnable runnable, long delayTicks, long periodTicks) {
         long safeDelay = Math.max(1L, delayTicks);
         long safePeriod = Math.max(1L, periodTicks);
@@ -49,5 +45,9 @@ public final class SchedulerUtils {
         }
 
         Bukkit.getScheduler().runTaskLater(plugin, runnable, safeDelay);
+    }
+
+    public interface TaskHandle {
+        void cancel();
     }
 }

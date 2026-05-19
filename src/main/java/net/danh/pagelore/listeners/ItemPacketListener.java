@@ -12,7 +12,6 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.danh.pagelore.PageLore;
 import net.danh.pagelore.utils.ColorUtils;
-import net.danh.pagelore.utils.ServerVersion;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -50,6 +49,13 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
                 .expireAfterWrite(expire, TimeUnit.SECONDS)
                 .maximumSize(maxSize)
                 .build();
+    }
+
+    public void clearCache() {
+        if (loreCache != null) {
+            loreCache.invalidateAll();
+            loreCache.cleanUp();
+        }
     }
 
     @Override
@@ -98,26 +104,16 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         List<String> rawLore = new ArrayList<>();
         boolean needsProcessing = false;
 
-        if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
-            List<Component> components = meta.lore();
-            if (components != null) {
-                for (Component c : components) {
-                    String serialized = MiniMessage.miniMessage().serialize(c);
-                    if (serialized.contains(plugin.separator) || serialized.contains(plugin.papiTag) || serialized.contains(plugin.checkTag)) {
-                        needsProcessing = true;
-                    }
-                    rawLore.add(serialized);
+        List<Component> components = meta.lore();
+        if (components != null) {
+            for (Component component : components) {
+                String serialized = MiniMessage.miniMessage().serialize(component);
+                String plainText = ColorUtils.toPlainText(component);
+                if (serialized.contains(plugin.separator) || serialized.contains(plugin.papiTag) || serialized.contains(plugin.checkTag) ||
+                        plainText.contains(plugin.separator) || plainText.contains(plugin.papiTag) || plainText.contains(plugin.checkTag)) {
+                    needsProcessing = true;
                 }
-            }
-        } else {
-            if (meta.getLore() != null) {
-                rawLore.addAll(meta.getLore());
-                for (String line : rawLore) {
-                    if (line.contains(plugin.separator) || line.contains(plugin.papiTag) || line.contains(plugin.checkTag)) {
-                        needsProcessing = true;
-                        break;
-                    }
-                }
+                rawLore.add(serialized);
             }
         }
 
@@ -127,6 +123,8 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         NamespacedKey fullLoreKey = new NamespacedKey(plugin, plugin.nbtFullLoreKey);
         int currentPage = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
         boolean showFullLore = meta.getPersistentDataContainer().getOrDefault(fullLoreKey, PersistentDataType.BYTE, (byte) 0) == 1;
+        int totalPages = getTotalPages(rawLore, plugin.separator);
+        currentPage = Math.max(0, Math.min(currentPage, totalPages - 1));
 
         LoreCacheKey cacheKey = new LoreCacheKey(
                 player.getUniqueId().toString(),
@@ -141,7 +139,7 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         List<Component> finalLore = loreCache.getIfPresent(cacheKey);
 
         if (finalLore == null) {
-            boolean hasPage = rawLore.stream().anyMatch(s -> s.contains(plugin.separator));
+            boolean hasPage = totalPages > 1;
             List<String> pageLore = new ArrayList<>();
             int pageIndex = 0;
 
@@ -178,22 +176,10 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
             loreCache.put(cacheKey, finalLore);
         }
 
-        if (ServerVersion.isPaper() && ServerVersion.isAtLeast(1, 16, 5)) {
-            meta.lore(finalLore);
-        } else {
-            List<String> legacy = finalLore.stream().map(c -> LegacyComponentSerializer.legacySection().serialize(c)).toList();
-            meta.setLore(legacy);
-        }
+        meta.lore(finalLore);
 
         bukkitItem.setItemMeta(meta);
         return true;
-    }
-
-    /**
-     * Includes item identity fields so GUI items with similar lore templates do not reuse another item's processed lore.
-     */
-    private record LoreCacheKey(String playerId, int page, boolean showFullLore, String material, int displayNameHash,
-                                int itemHash, List<String> rawLore) {
     }
 
     private String stripColors(String input) {
@@ -216,5 +202,22 @@ public class ItemPacketListener extends PacketListenerAbstract implements Packet
         } catch (Exception e) {
             return op.equals("==") ? v1.equalsIgnoreCase(v2) : op.equals("!=") && !v1.equalsIgnoreCase(v2);
         }
+    }
+
+    private int getTotalPages(List<String> rawLore, String separator) {
+        int totalPages = 1;
+        for (String line : rawLore) {
+            if (line.contains(separator)) {
+                totalPages++;
+            }
+        }
+        return totalPages;
+    }
+
+    /**
+     * Includes item identity fields so GUI items with similar lore templates do not reuse another item's processed lore.
+     */
+    private record LoreCacheKey(String playerId, int page, boolean showFullLore, String material, int displayNameHash,
+                                int itemHash, List<String> rawLore) {
     }
 }

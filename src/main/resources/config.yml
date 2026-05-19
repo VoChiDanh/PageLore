@@ -3,87 +3,81 @@
 # ========================================== #
 
 settings:
-  # The exact string used in your item's lore to split it into pages.
-  # Recommendation: Keep it plain, do not use colors here.
+  # The exact lore line that splits an item into pages.
+  # Keep this plain and uncolored so item plugins can write it reliably.
   page-separator: "{page}"
 
-  # Permission required to use admin commands
+  # Permission required to use PageLore admin commands.
   permission: "pagelore.admin"
 
-  # Should the plugin play a sound when navigating pages? (true/false)
+  # Plays feedback when a player changes page or toggles full lore mode.
   play-sound: true
-  # Sound type from Bukkit Sound Enum. Example: UI_BUTTON_CLICK, ENTITY_BAT_TAKEOFF
+  # Minecraft sound key. Use namespaced-key style or enum-style text; both are normalized.
   sound-type: "ui.button.click"
   sound-volume: 1.0
   sound-pitch: 1.0
 
-  # Set to true to print PlaceholderAPI checking values in the console.
+  # Prints requirement parsing details to the console when enabled.
   debug: false
 
-  # Automatic inventory refresh time for PAPI updates (In Ticks. 20 ticks = 1 second)
-  # Recommendation: Set to 20 (1 second) or 60 (3 seconds) for optimal results.
+  # Inventory refresh interval in ticks for PlaceholderAPI-powered lore.
+  # 20 ticks = 1 second. Set to 0 to disable automatic refreshes.
   auto-update-interval: 20
 
-  # Desync fix delay when interacting with special clicks like SWAP_OFFHAND (ticks)
+  # Delay in ticks before forcing a client inventory refresh after special clicks.
   desync-fix-delay-ticks: 1
 
-  # Memory & Performance optimization caching
+  # Packet lore cache. Short expiry keeps PlaceholderAPI values fresh without reprocessing every packet.
   cache:
     expire-time-seconds: 1
     maximum-size: 5000
 
-  # Cooldown settings for turning pages to prevent macro/spam abuse and lag.
+  # Cooldown settings for turning pages to reduce macro spam and packet churn.
   cooldown:
-    # Set to true to enable the cooldown, false to disable.
     enabled: true
-    # Cooldown duration in seconds (Can use decimals, e.g., 0.5 for half a second).
+    # Duration in seconds. Decimals are supported.
     time: 0.5
 
-    # Where should the cooldown message be displayed?
-    # Available options: CHAT, ACTION_BAR, TITLE, SUBTITLE
-    # Recommendation: ACTION_BAR is the least intrusive.
+    # Available options: CHAT, ACTION_BAR, TITLE, SUBTITLE.
     message-type: "ACTION_BAR"
 
-    # Delay between consecutive cooldown messages in milliseconds (1000 = 1 second)
+    # Minimum time between repeated cooldown messages in milliseconds.
     message-throttle-ms: 1000
 
-    # Advanced settings specifically for TITLE and SUBTITLE modes.
-    # Measured in ticks (20 ticks = 1 second).
+    # Title timings are measured in ticks.
     title-settings:
       fade-in: 10
       stay: 40
       fade-out: 10
 
-# Configure the inputs used to turn pages.
-# Valid options include:
-# LEFT, RIGHT, SHIFT_LEFT, SHIFT_RIGHT, WINDOW_BORDER_LEFT, WINDOW_BORDER_RIGHT, MIDDLE, NUMBER_KEY, DOUBLE_CLICK, DROP, CONTROL_DROP, SWAP_OFFHAND
-# Note: "SWAP_OFFHAND" is triggered by pressing the 'F' key while hovering over the item.
+# Configure the inputs used to control lore pages.
+# Valid values are Bukkit ClickType names:
+# LEFT, RIGHT, SHIFT_LEFT, SHIFT_RIGHT, WINDOW_BORDER_LEFT, WINDOW_BORDER_RIGHT,
+# MIDDLE, NUMBER_KEY, DOUBLE_CLICK, DROP, CONTROL_DROP, SWAP_OFFHAND.
 controls:
-  # Inputs to go to the NEXT page (It will loop back to page 1 automatically)
+  # Goes to the next page and loops back to page 1.
   next-page:
     - "SWAP_OFFHAND"
-  # Inputs to go to the PREVIOUS page
+  # Goes to the previous page and loops to the last page when needed.
   previous-page:
     - "SHIFT_RIGHT"
-  # Inputs to toggle full lore mode for the hovered item.
-  # Full lore mode shows every lore section at once and hides the page separator lines.
+  # Shows all pages at once and hides separator lines until toggled again.
   full-lore:
     - "MIDDLE"
 
-# Logic parsing for placeholders, allowing dynamic item requirements
-# Usage in lore: {check:{papi:placeholder}>=value}
+# Requirement parser for dynamic lore checks.
+# Format: {check:{papi:placeholder}>=value}
 # Example: {check:{papi:mmocore_level}>=105} Combat Level
 requirements:
-  # Symbol shown when the requirement is MET.
-  # Supports MiniMessage formats like <green>, <bold>, <#HexColor>
+  # Text inserted when a requirement is met.
+  # Supports MiniMessage formats such as <green>, <bold>, and <#55ff55>.
   met-symbol: "<green>✔"
 
-  # Symbol shown when the requirement is NOT MET.
-  # Supports MiniMessage formats like <dark_gray>, <strikethrough>
+  # Text inserted when a requirement is not met.
+  # Supports MiniMessage formats such as <dark_gray> and <strikethrough>.
   unmet-symbol: "<dark_gray>✘"
 
-# Advanced parsing settings to modify the internal tags used by the plugin.
-# Only change these if they conflict with other plugins.
+# Advanced parser settings. Change these only if another plugin conflicts with the default tags.
 advanced:
   papi-tag: "{papi:"
   check-tag: "{check:"

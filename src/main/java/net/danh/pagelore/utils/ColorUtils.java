@@ -25,7 +25,10 @@ public class ColorUtils {
         try {
             return MINI_MESSAGE.deserialize(safeInput);
         } catch (Exception e) {
-            PageLore.getInstance().getLogger().warning("MiniMessage Syntax Error in string: '" + input + "'. Please verify your configuration!");
+            PageLore plugin = PageLore.getInstance();
+            if (plugin != null) {
+                plugin.getLogger().warning("MiniMessage syntax error in string: '" + input + "'. Please verify your configuration.");
+            }
             return Component.text(input);
         }
     }
@@ -34,7 +37,8 @@ public class ColorUtils {
      * Automatically prepends the plugin prefix and deserializes into an adventure Component.
      */
     public static @NotNull Component parseWithPrefix(@NotNull String input) {
-        String prefix = PageLore.getInstance().getMessages().getString("prefix", "");
+        PageLore plugin = PageLore.getInstance();
+        String prefix = plugin != null ? plugin.getMessages().getString("prefix", "") : "";
         return parse(prefix + input);
     }
 
@@ -51,7 +55,7 @@ public class ColorUtils {
     public static String convertLegacyToMiniMessage(String text) {
         if (text == null) return "";
 
-        text = text.replace("§", "&");
+        text = text.replace('\u00A7', '&');
 
         Matcher matcher = HEX_PATTERN.matcher(text);
         StringBuilder buffer = new StringBuilder();
