@@ -4,9 +4,8 @@ theme: minima
 markdown: kramdown
 
 header_pages:
-  - Home.md
+  - index.md
   - Installation.md
-  - _Sidebar.md
   - Configuration.md
   - Folia-Notes.md
   - Lore-Format.md

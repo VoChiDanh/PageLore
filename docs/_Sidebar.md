@@ -1,4 +1,4 @@
-- [Home](Home.md)
+- [Home](index.md)
 - [Installation](Installation.md)
 - [Configuration](Configuration.md)
 - [Lore Format](Lore-Format.md)
