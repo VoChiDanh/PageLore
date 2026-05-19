@@ -1,5 +1,3 @@
-# Folia Notes
-
 PageLore declares Folia support in `paper-plugin.yml`.
 
 ## What Is Folia-Safe

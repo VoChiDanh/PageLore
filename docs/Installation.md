@@ -1,5 +1,3 @@
-# Installation
-
 ## Requirements
 
 - Java 21

@@ -1,5 +1,3 @@
-# PageLore Wiki
-
 PageLore splits long item lore into multiple inventory pages. Players change pages with configurable inventory clicks,
 while the real server-side item remains unchanged except for small PersistentDataContainer values that store the
 selected page and full-lore mode.

@@ -1,5 +1,3 @@
-# Lore Format
-
 ## Pages
 
 Use `{page}` on its own line:

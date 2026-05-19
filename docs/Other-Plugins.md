@@ -1,5 +1,3 @@
-# Other Plugins
-
 PageLore is compatible with item plugins that store lore as normal Bukkit item lore.
 
 ## ItemsAdder, Oraxen, ExecutableItems, EcoItems

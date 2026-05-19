@@ -1,5 +1,3 @@
-# Configuration
-
 Main file: `plugins/PageLore/config.yml`
 
 ## Page Separator
