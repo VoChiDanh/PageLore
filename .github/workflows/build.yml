@@ -1,61 +1,74 @@
-name: PageLore CI
+# FILE PATH: .github/workflows/build.yml
+name: PageLore CI/CD
 
+# Trigger the workflow on push to any branch
 on:
   push:
     branches:
-      - "**"
-  pull_request:
-    branches:
-      - "**"
+      - '**'
 
+# Define all global environment variables
 env:
+  # Base Webhook URL (NO ?thread_id AT THE END)
   WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
   THREAD_ID: ${{ secrets.DISCORD_WEBHOOK_THREAD_ID }}
+
+  # Gradle Settings
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+  # Bot Identity & Assets
   ICON_URL: "https://gitlab.com/uploads/-/system/group/avatar/121690756/SinceRPG.png?width=48"
   THUMBNAIL_URL: "https://gitlab.com/uploads/-/system/group/avatar/121690756/SinceRPG.png?width=48"
   BOT_USERNAME: "PageLore Build"
-  COLOR_PENDING: "16766720"
-  COLOR_SUCCESS: "5763719"
-  COLOR_FAIL: "15548997"
+
+  # Embed Colors (Decimal format)
+  COLOR_PENDING: "16766720" # Yellow
+  COLOR_SUCCESS: "5763719"  # Green
+  COLOR_FAIL: "15548997"    # Red
+
+  # Default Texts
   NO_CHANGELOG_TEXT: "No specific changelog provided."
-  FAIL_DESC_TEXT: "A syntax or compilation error occurred. Check the GitHub Actions log."
+  FAIL_DESC_TEXT: "A syntax or compilation error occurred. Please check the GitHub Actions Console."
 
 jobs:
-  build:
-    name: Build
+  build_and_notify:
+    name: Build & Discord Notify
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      # --- STEP 0: PREPARE ENVIRONMENT ---
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Required to fetch git log history for commits
 
-      - name: Setup Java 21
+      - name: Setup Java JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle' # Automatically handles Gradle caching
 
-      - name: Notify Discord build start
+      # --- STEP 1: NOTIFY BUILD START ---
+      - name: Notify Start to Discord
         id: notify_start
-        if: env.WEBHOOK_URL != ''
-        shell: bash
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           AUTHOR=$(git log -1 --pretty=%an)
           HASH=$(git log -1 --pretty=%h)
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          GRADLE_CMD="./gradlew"
+
+          if [ -f "./gradlew" ]; then GRADLE_CMD="./gradlew"; else GRADLE_CMD="gradle"; fi
           VERSION=$($GRADLE_CMD properties -q | grep "^version:" | awk '{print $2}' || echo "Unknown")
+          
+          # Handle empty changelog
           [ -z "$(echo "$COMMIT_MSG" | tr -d '[:space:]')" ] && COMMIT_MSG="$NO_CHANGELOG_TEXT"
 
+          # CREATE PENDING MESSAGE
           jq -n \
             --arg author "$AUTHOR triggered a build for PageLore" \
             --arg desc "$COMMIT_MSG" \
-            --arg footer "Version $VERSION - $HASH" \
+            --arg footer "Version $VERSION • $HASH" \
             --arg timestamp "$TIMESTAMP" \
             --arg icon "$ICON_URL" \
             --arg thumb "$THUMBNAIL_URL" \
@@ -67,7 +80,7 @@ jobs:
               embeds: [{
                 color: $color,
                 author: { name: $author, icon_url: $icon },
-                title: "Building PageLore",
+                title: "⏳ Building...",
                 description: $desc,
                 thumbnail: { url: $thumb },
                 footer: { text: $footer },
@@ -75,92 +88,103 @@ jobs:
               }]
             }' > build_start.json
 
-          WEBHOOK_ENDPOINT="${WEBHOOK_URL}?wait=true"
-          if [ -n "$THREAD_ID" ]; then WEBHOOK_ENDPOINT="${WEBHOOK_URL}?thread_id=${THREAD_ID}&wait=true"; fi
-          RESPONSE=$(curl -sS -X POST -H "Content-Type: application/json" -d @build_start.json "$WEBHOOK_ENDPOINT")
-          MSG_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          if [ -n "$MSG_ID" ]; then echo "MSG_ID=$MSG_ID" >> "$GITHUB_ENV"; fi
+          # Send message and extract ID, save to GITHUB_ENV
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d @build_start.json "${WEBHOOK_URL}?thread_id=${THREAD_ID}&wait=true")
+          MSG_ID=$(echo $RESPONSE | jq -r '.id')
+          if [ "$MSG_ID" != "null" ]; then echo "MSG_ID=$MSG_ID" >> $GITHUB_ENV; fi
 
+      # --- STEP 2: ACTUAL BUILD PROCESS ---
       - name: Build with Gradle
-        shell: bash
         run: |
-          chmod +x ./gradlew
-          ./gradlew clean build
+          if [ -f "./gradlew" ]; then
+             chmod +x ./gradlew
+             ./gradlew clean build
+          else
+             gradle clean build
+          fi
 
-      - name: Notify Discord success
-        if: success() && env.WEBHOOK_URL != '' && env.MSG_ID != ''
-        shell: bash
+      # --- STEP 3A: NOTIFY BUILD SUCCESS ---
+      - name: Notify Success & Upload JAR to Discord
+        if: success()
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           AUTHOR=$(git log -1 --pretty=%an)
           HASH=$(git log -1 --pretty=%h)
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          VERSION=$(./gradlew properties -q | grep "^version:" | awk '{print $2}' || echo "Unknown")
+          
+          if [ -f "./gradlew" ]; then GRADLE_CMD="./gradlew"; else GRADLE_CMD="gradle"; fi
+          VERSION=$($GRADLE_CMD properties -q | grep "^version:" | awk '{print $2}' || echo "Unknown")
+          
           [ -z "$(echo "$COMMIT_MSG" | tr -d '[:space:]')" ] && COMMIT_MSG="$NO_CHANGELOG_TEXT"
 
-          jq -n \
-            --arg author "$AUTHOR pushed an update for PageLore" \
-            --arg desc "$COMMIT_MSG" \
-            --arg footer "Version $VERSION - $HASH" \
-            --arg timestamp "$TIMESTAMP" \
-            --arg icon "$ICON_URL" \
-            --arg thumb "$THUMBNAIL_URL" \
-            --argjson color "$COLOR_SUCCESS" \
-            '{
-              embeds: [{
-                color: $color,
-                author: { name: $author, icon_url: $icon },
-                title: "Build successful",
-                description: $desc,
-                thumbnail: { url: $thumb },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }' > build_success.json
+          # EDIT MESSAGE ON SUCCESS
+          if [ -n "$MSG_ID" ]; then
+            jq -n \
+              --arg author "$AUTHOR pushed an update for PageLore" \
+              --arg desc "$COMMIT_MSG" \
+              --arg footer "Version $VERSION • $HASH" \
+              --arg timestamp "$TIMESTAMP" \
+              --arg icon "$ICON_URL" \
+              --arg thumb "$THUMBNAIL_URL" \
+              --argjson color "$COLOR_SUCCESS" \
+              '{
+                embeds: [{
+                  color: $color,
+                  author: { name: $author, icon_url: $icon },
+                  title: "Build Successful! 🚀",
+                  description: $desc,
+                  thumbnail: { url: $thumb },
+                  footer: { text: $footer },
+                  timestamp: $timestamp
+                }]
+              }' > build_success.json
 
-          JAR_FILE=$(find build/libs -maxdepth 1 -name "*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)
-          WEBHOOK_ENDPOINT="${WEBHOOK_URL}/messages/${MSG_ID}"
-          if [ -n "$THREAD_ID" ]; then WEBHOOK_ENDPOINT="${WEBHOOK_URL}/messages/${MSG_ID}?thread_id=${THREAD_ID}"; fi
-          if [ -n "$JAR_FILE" ] && [ -f "$JAR_FILE" ]; then
-            curl -sS -X PATCH -F "payload_json=<build_success.json;type=application/json" -F "file=@$JAR_FILE" "$WEBHOOK_ENDPOINT"
-          else
-            curl -sS -X PATCH -H "Content-Type: application/json" -d @build_success.json "$WEBHOOK_ENDPOINT"
+            JAR_FILE=$(find build/libs -maxdepth 1 -name "*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)
+            if [ -n "$JAR_FILE" ] && [ -f "$JAR_FILE" ]; then
+              curl -s -X PATCH -F "payload_json=<build_success.json;type=application/json" -F "file=@$JAR_FILE" "${WEBHOOK_URL}/messages/${MSG_ID}?thread_id=${THREAD_ID}"
+            else
+              curl -s -X PATCH -H "Content-Type: application/json" -d @build_success.json "${WEBHOOK_URL}/messages/${MSG_ID}?thread_id=${THREAD_ID}"
+            fi
           fi
 
-      - name: Notify Discord failure
-        if: failure() && env.WEBHOOK_URL != '' && env.MSG_ID != ''
-        shell: bash
+      # --- STEP 3B: NOTIFY BUILD FAILURE ---
+      - name: Notify Failure to Discord
+        if: failure()
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           HASH=$(git log -1 --pretty=%h)
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
           PIPELINE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
           [ -z "$(echo "$COMMIT_MSG" | tr -d '[:space:]')" ] && COMMIT_MSG="$FAIL_DESC_TEXT"
 
-          jq -n \
-            --arg url "$PIPELINE_URL" \
-            --arg footer "Build failed - $HASH" \
-            --arg timestamp "$TIMESTAMP" \
-            --arg icon "$ICON_URL" \
-            --arg desc "$COMMIT_MSG" \
-            --argjson color "$COLOR_FAIL" \
-            '{
-              embeds: [{
-                color: $color,
-                author: { name: "Build failed", icon_url: $icon },
-                title: "View pipeline logs",
-                url: $url,
-                description: $desc,
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }' > build_fail.json
+          # EDIT MESSAGE ON FAILURE
+          if [ -n "$MSG_ID" ]; then
+            jq -n \
+              --arg url "$PIPELINE_URL" \
+              --arg footer "Build Failed • $HASH" \
+              --arg timestamp "$TIMESTAMP" \
+              --arg icon "$ICON_URL" \
+              --arg desc "$COMMIT_MSG" \
+              --argjson color "$COLOR_FAIL" \
+              '{ 
+                embeds: [{ 
+                  color: $color, 
+                  author: { name: "Build Failed ❌", icon_url: $icon }, 
+                  title: "Click here to view Pipeline Logs", 
+                  url: $url, 
+                  description: $desc, 
+                  footer: { text: $footer }, 
+                  timestamp: $timestamp 
+                }] 
+              }' > build_fail.json
+          
+            curl -s -X PATCH -H "Content-Type: application/json" -d @build_fail.json "${WEBHOOK_URL}/messages/${MSG_ID}?thread_id=${THREAD_ID}"
+          fi
 
-          WEBHOOK_ENDPOINT="${WEBHOOK_URL}/messages/${MSG_ID}"
-          if [ -n "$THREAD_ID" ]; then WEBHOOK_ENDPOINT="${WEBHOOK_URL}/messages/${MSG_ID}?thread_id=${THREAD_ID}"; fi
-          curl -sS -X PATCH -H "Content-Type: application/json" -d @build_fail.json "$WEBHOOK_ENDPOINT"
-
-      - name: Upload JAR artifact
+      # --- STEP 4: SAVE ARTIFACTS TO GITHUB ---
+      - name: Upload JAR Artifacts to GitHub
         if: always()
         uses: actions/upload-artifact@v4
         with:
